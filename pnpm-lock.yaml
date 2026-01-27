@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@dotenvx/dotenvx':
-        specifier: ^1.52.0
-        version: 1.52.0
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@types/pg@8.16.0)(pg@8.17.2)
@@ -21,6 +18,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.8
         version: 2.29.8(@types/node@25.0.10)
+      '@dotenvx/dotenvx':
+        specifier: ^1.52.0
+        version: 1.52.0
       '@types/node':
         specifier: ^25.0.10
         version: 25.0.10

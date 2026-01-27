@@ -29,7 +29,8 @@ Why this is required:
 If `.returning()` is omitted on an audited INSERT or UPDATE:
 
 - audit-logger cannot determine what changed
-- the operation will fail (by default) to prevent corrupted audit logs
+  <!-- TODO: Implement failure if no returning? -->
+  <!-- - the operation will fail (by default) to prevent corrupted audit logs -->
 
 ---
 
@@ -38,7 +39,7 @@ If `.returning()` is omitted on an audited INSERT or UPDATE:
 ```ts
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { createAuditTableSQL } from "audit-logger";
+import { createAuditTableSQL } from "@white-room/audit-logger";
 
 const client = postgres(process.env.DATABASE_URL);
 const db = drizzle(client);
@@ -55,14 +56,16 @@ import { createAuditLogger } from "audit-logger";
 const auditLogger = createAuditLogger(db, {
   tables: ["users", "vehicles"],
   excludeFields: ["password", "token"],
-  getUserId: () = getCurrentUser()?.id,
+  getUserId: () => getCurrentUser()?.id,
 });
 
 // IMPORTANT: use the wrapped db
 const { db: auditedDb } = auditLogger;
 ```
 
-### 3. Set context (example: Express middleware)
+### 3. Set context
+
+#### Example: Express middleware
 
 ```ts
 app.use((req, res, next) = {
@@ -77,6 +80,52 @@ app.use((req, res, next) = {
   });
 
   next();
+});
+```
+
+#### Example: Hono middleware
+
+```ts
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.use("*", async (c, next) = {
+  auditLogger.setContext({
+    userId: c.get("user")?.id,
+    ipAddress: c.req.header("x-forwarded-for") || c.req.raw.headers.get("x-forwarded-for"),
+    userAgent: c.req.header("user-agent"),
+    metadata: {
+      path: c.req.path,
+      method: c.req.method,
+    },
+  });
+
+  await next();
+});
+```
+
+#### Example: tRPC middleware
+
+```ts
+import { initTRPC } from "@trpc/server";
+
+const t = initTRPC.context<{
+  req: { user?: { id?: string }; ip?: string; headers?: Record<string, string> };
+}>().create();
+
+const auditContext = t.middleware(({ ctx, next }) = {
+  auditLogger.setContext({
+    userId: ctx.req.user?.id,
+    ipAddress: ctx.req.ip,
+    userAgent: ctx.req.headers?.["user-agent"],
+    metadata: {
+      path: ctx.req.headers?.["x-path"],
+      method: ctx.req.headers?.["x-method"],
+    },
+  });
+
+  return next();
 });
 ```
 
@@ -120,10 +169,10 @@ interface AuditConfig {
   strictMode?: boolean;
 
   // Resolve current user id
-  getUserId?: () = string | undefined | Promise<string | undefined;
+  getUserId?: () => string | undefined | Promise<string | undefined;
 
   // Resolve additional metadata
-  getMetadata?: () = Record<string, unknown | Promise<Record<string, unknown;
+  getMetadata?: () => Record<string, unknown | Promise<Record<string, unknown;
 }
 ```
 
@@ -161,11 +210,9 @@ await auditLogger.withContext(
       reason: "scheduled_maintenance",
     },
   },
-  async () = {
-    await auditedDb
-      .delete(expiredTokens)
-      .where(lt(expiredTokens.expiresAt, new Date()));
-  }
+  async () => {
+    await auditedDb.delete(expiredTokens).where(lt(expiredTokens.expiresAt, new Date()));
+  },
 );
 ```
 
@@ -212,17 +259,6 @@ const activity = await auditedDb
   .where(eq(auditLogs.userId, userId))
   .orderBy(desc(auditLogs.createdAt))
   .limit(100);
-```
-
-## Development
-
-```bash
-pnpm install
-pnpm test
-pnpm test:ui
-pnpm build
-pnpm lint
-pnpm format
 ```
 
 ## Roadmap

@@ -15,6 +15,7 @@ export const auditAction = pgEnum("audit_action", ["INSERT", "UPDATE", "DELETE"]
  * Audit logs table schema
  * Stores all database operation audit trails
  */
+// TODO: Flexible structure, defined by the user given schema if provided, else default?
 export const auditLogs = pgTable(
   "audit_logs",
   {
@@ -25,6 +26,7 @@ export const auditLogs = pgTable(
     ipAddress: varchar("ip_address", { length: 45 }), // IPv6 compatible
     userAgent: text("user_agent"),
 
+    // TODO: Support custom action types (varchar) or strictly db actions (ENUM)?
     // What action was performed
     action: auditAction("action").notNull(),
     // action: varchar("action", { length: 20 }).notNull(),
