@@ -5,12 +5,15 @@
  */
 
 // TODO: Remove returning(), it should not be a requirement; for insert, can we capture the insert values from the proxy?
-// TODO: Make sure transaction works, test it
-// TODO: Single statement query fails, shouldn't log
 // TODO: Handle parallel query, multiple queries running at the same time, batching?
+
+// * Implemented, test the following
+// TODO: Single statement query fails, shouldn't log
+// TODO: Make sure transaction works, test it
 // TODO: Make storing previous value configurable, since we need to query the prev values?
 // TODO: Make action table column configurable, we want support view/read, and it is not CUD database operation; User may use the manual function to log like logRead
 
+// * Misc, not important, do when project is MVP
 // TODO: Give a nice name
 // TODO: Open source it (optional), but build as a package
 // TODO: Try on Greenetrix (no code changes except setting it up)

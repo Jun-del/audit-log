@@ -260,9 +260,15 @@ async function executeWithAudit(
   let beforeState: any[] = [];
 
   try {
-    // For UPDATE/DELETE, capture the "before" state
-    if (operation === "update" || operation === "delete") {
+    // For UPDATE/DELETE, capture the "before" state if configure
+    const shouldCapture =
+      (operation === "update" && auditLogger.shouldCaptureOldValues()) ||
+      (operation === "delete" && auditLogger.shouldCaptureDeletedValues());
+
+    if (shouldCapture) {
       beforeState = await captureBeforeState(tableName, queryBuilder, db, tableRef);
+    } else {
+      debug(`Skipping before state capture for ${operation} (not configured)`);
     }
 
     // Execute the actual operation
@@ -359,6 +365,10 @@ async function createAuditLogs(
       if (records.length > 0 && beforeState.length > 0) {
         debug(`Logging ${records.length} UPDATE operations`);
         await auditLogger.logUpdate(tableName, beforeState, records);
+      } else if (records.length > 0 && beforeState.length === 0) {
+        // captureOldValues is disabled, log without old values
+        debug(`Logging ${records.length} UPDATE operations (without old values)`);
+        await auditLogger.logUpdate(tableName, [], records);
       } else {
         debug(
           `Skipping UPDATE audit: records=${records.length}, beforeState=${beforeState.length}`,
@@ -371,8 +381,13 @@ async function createAuditLogs(
       if (beforeState.length > 0) {
         debug(`Logging ${beforeState.length} DELETE operations`);
         await auditLogger.logDelete(tableName, beforeState);
+      } else if (records.length > 0) {
+        // TODO: Delete captureDeletedValues false is not working
+        // Fallback if beforeState not captured but we have result
+        debug(`Logging ${records.length} DELETE operations (using result)`);
+        await auditLogger.logDelete(tableName, records);
       } else {
-        debug("Skipping DELETE audit: no beforeState");
+        debug("Skipping DELETE audit: no beforeState or records");
       }
       break;
   }

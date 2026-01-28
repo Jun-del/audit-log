@@ -39,7 +39,6 @@ export class AuditLogger {
       strictMode: config.strictMode ?? false,
       getUserId: config.getUserId || (() => undefined),
       getMetadata: config.getMetadata || (() => ({})),
-      // TODO: Implement in executeWithAudit
       captureOldValues: config.captureOldValues ?? false,
       captureDeletedValues: config.captureDeletedValues ?? false,
       customWriter: config.customWriter,
@@ -68,6 +67,22 @@ export class AuditLogger {
     }
 
     return this.config.tables.includes(tableName);
+  }
+
+  /**
+   * Check if old values should be captured for UPDATE operations
+   * Exposed for use by interceptor
+   */
+  shouldCaptureOldValues(): boolean {
+    return this.config.captureOldValues;
+  }
+
+  /**
+   * Check if deleted values should be captured for DELETE operations
+   * Exposed for use by interceptor
+   */
+  shouldCaptureDeletedValues(): boolean {
+    return this.config.captureDeletedValues;
   }
 
   /**

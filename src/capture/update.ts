@@ -14,6 +14,23 @@ export function createUpdateAuditLogs(
 ): AuditLog[] {
   const logs: AuditLog[] = [];
 
+  if (!config.captureOldValues) {
+    for (const after of afterRecords) {
+      if (!after) continue;
+
+      const newValues = filterFields(after, tableName, config);
+      logs.push({
+        action: "UPDATE" as const,
+        tableName,
+        recordId: extractPrimaryKey(after, tableName),
+        oldValues: undefined,
+        newValues,
+        changedFields: undefined,
+      });
+    }
+    return logs;
+  }
+
   // Match before and after records by primary key
   for (let i = 0; i < afterRecords.length; i++) {
     const after = afterRecords[i];
