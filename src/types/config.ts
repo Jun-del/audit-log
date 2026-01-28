@@ -45,6 +45,20 @@ export interface AuditConfig {
    * Function to get additional metadata for audit logs
    */
   getMetadata?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+
+  /**
+   * Whether to capture "before" values for UPDATE operations
+   * Disabling this skips the additional SELECT query before updates
+   * @default false
+   */
+  captureOldValues?: boolean;
+
+  /**
+   * Whether to capture "before" values for DELETE operations
+   * Disabling this skips the additional SELECT query before deletes
+   * @default false
+   */
+  captureDeletedValues?: boolean;
 }
 
 /**
@@ -83,4 +97,6 @@ export interface AuditContext {
 export type NormalizedConfig = Required<Omit<AuditConfig, "getUserId" | "getMetadata">> & {
   getUserId: () => string | undefined | Promise<string | undefined>;
   getMetadata: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+  captureOldValues: boolean;
+  captureDeletedValues: boolean;
 };

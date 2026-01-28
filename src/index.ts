@@ -81,6 +81,20 @@ export function createAuditLogger(db: PostgresJsDatabase<any>, config: AuditConf
      * Get current audit context
      */
     getContext: logger.getContext.bind(logger),
+
+    /**
+     * Generic manual logging for any operation (READ, custom actions, etc.)
+     *
+     * @example
+     * await auditLogger.log({
+     *   action: 'READ',
+     *   tableName: 'sensitive_documents',
+     *   recordId: doc.id,
+     *   newValues: { accessed: true },
+     *   metadata: { reason: 'user_request' }
+     * });
+     */
+    log: logger.log.bind(logger),
   };
 }
 

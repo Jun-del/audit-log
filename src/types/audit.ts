@@ -1,7 +1,7 @@
 /**
  * Type of database operation
  */
-export type AuditAction = "INSERT" | "UPDATE" | "DELETE";
+export type AuditAction = "INSERT" | "UPDATE" | "DELETE" | "READ" | (string & {}); // Allow custom actions
 
 /**
  * Internal representation of an audit log entry (before storage)
@@ -13,6 +13,7 @@ export interface AuditLog {
   oldValues?: Record<string, unknown>;
   newValues?: Record<string, unknown>;
   changedFields?: string[];
+  metadata?: Record<string, unknown>; // Add metadata to individual logs
 }
 
 /**

@@ -165,9 +165,9 @@ function createExecutionProxy(
           debug(`Intercepting ${operation} on ${tableName} via ${String(prop)}`);
 
           // If we can't extract table name or shouldn't audit, just execute normally
-          if (!tableName || !(auditLogger as any).shouldAudit(tableName)) {
+          if (!tableName || !auditLogger.shouldAudit(tableName)) {
             debug(
-              `Skipping audit for ${tableName} (shouldAudit: ${tableName ? (auditLogger as any).shouldAudit(tableName) : "no table"})`,
+              `Skipping audit for ${tableName} (shouldAudit: ${tableName ? auditLogger.shouldAudit(tableName) : "no table"})`,
             );
             return original?.apply(target, args);
           }

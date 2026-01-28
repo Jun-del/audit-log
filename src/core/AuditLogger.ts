@@ -1,3 +1,4 @@
+import type { AuditLog } from "../types/audit.js";
 import type { AuditConfig, AuditContext, NormalizedConfig } from "../types/config.js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { createDeleteAuditLogs } from "../capture/delete.js";
@@ -36,6 +37,9 @@ export class AuditLogger {
       strictMode: config.strictMode ?? false,
       getUserId: config.getUserId || (() => undefined),
       getMetadata: config.getMetadata || (() => ({})),
+      // TODO: Implement in executeWithAudit
+      captureOldValues: config.captureOldValues ?? false,
+      captureDeletedValues: config.captureDeletedValues ?? false,
     };
   }
 
@@ -129,5 +133,56 @@ export class AuditLogger {
    */
   getContext(): AuditContext | undefined {
     return this.contextManager.getContext();
+  }
+
+  /**
+   * Generic manual logging for any operation (READ, custom actions, etc.)
+   *
+   * @example
+   * // Log a READ operation
+   * await auditLogger.log({
+   *   action: 'READ',
+   *   tableName: 'sensitive_documents',
+   *   recordId: documentId,
+   *   newValues: { accessedFields: ['ssn', 'salary'] },
+   *   metadata: { reason: 'compliance_audit' }
+   * });
+   *
+   * @example
+   * // Log a custom action
+   * await auditLogger.log({
+   *   action: 'EXPORT',
+   *   tableName: 'customer_data',
+   *   recordId: customerId,
+   *   metadata: { format: 'CSV', rowCount: 1500 }
+   * });
+   */
+  async log(entry: {
+    action: string;
+    tableName: string;
+    recordId: string;
+    oldValues?: Record<string, unknown>;
+    newValues?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    if (!this.shouldAudit(entry.tableName)) return;
+
+    const log: AuditLog = {
+      action: entry.action,
+      tableName: entry.tableName,
+      recordId: entry.recordId,
+      oldValues: entry.oldValues,
+      newValues: entry.newValues,
+      changedFields:
+        entry.oldValues && entry.newValues
+          ? Object.keys(entry.newValues).filter(
+              (key) =>
+                JSON.stringify(entry.oldValues![key]) !== JSON.stringify(entry.newValues![key]),
+            )
+          : undefined,
+      metadata: entry.metadata,
+    };
+
+    await this.writer.writeAuditLogs([log], this.contextManager.getContext());
   }
 }
