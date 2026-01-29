@@ -377,19 +377,12 @@ async function createAuditLogs(
       break;
 
     case "delete":
-      // For delete, use beforeState since records are gone
       if (beforeState.length > 0) {
         debug(`Logging ${beforeState.length} DELETE operations`);
         await auditLogger.logDelete(tableName, beforeState);
-      } else if (records.length > 0) {
-        // TODO: Delete captureDeletedValues false is not working
-        // Fallback if beforeState not captured but we have result
-        debug(`Logging ${records.length} DELETE operations (using result)`);
-        await auditLogger.logDelete(tableName, records);
       } else {
-        debug("Skipping DELETE audit: no beforeState or records");
+        debug("Skipping DELETE audit: captureDeletedValues is disabled or no records matched");
       }
-      break;
   }
 }
 
