@@ -15,25 +15,6 @@ yarn add audit-logger
 
 ## Quick Start
 
-## ⚠️ Required: Use `.returning()` for INSERT and UPDATE
-
-For automatic audit logging to work correctly, **all audited INSERT and UPDATE operations must use `.returning()`**.
-
-Why this is required:
-
-- Without `.returning()`, Drizzle returns only a PostgreSQL command result:
-  `{ command: "UPDATE", rowCount: 1, ... }`
-- With `.returning()`, Drizzle returns the actual inserted/updated row data
-- Audit logs require real row data to capture **before/after changes**
-
-If `.returning()` is omitted on an audited INSERT or UPDATE:
-
-- audit-logger cannot determine what changed
-  <!-- TODO: Implement failure if no returning? -->
-  <!-- - the operation will fail (by default) to prevent corrupted audit logs -->
-
----
-
 ### 1. Create the audit table
 
 ```ts
@@ -129,25 +110,50 @@ const auditContext = t.middleware(({ ctx, next }) = {
 });
 ```
 
-### 4. Use the database normally (with .returning() on INSERT/UPDATE) — auditing is automatic
+### 4. Use the database normally — auditing is automatic!
 
 ```ts
-// INSERT
-const [user] = await auditedDb.insert(users).values(data).returning();
+await auditedDb.insert(users).values({
+  email: "alice@example.com",
+  name: "Alice",
+});
+// ✓ Audit log created automatically
 
-// UPDATE (before/after captured automatically)
-const [updated] = await auditedDb
-  .update(users)
-  .set({ name: "New Name" })
-  .where(eq(users.id, userId))
-  .returning();
+await auditedDb.update(users).set({ name: "Alice Smith" }).where(eq(users.id, 1));
+// ✓ Audit log created with before/after values
 
-// DELETE
-await auditedDb.delete(users).where(eq(users.id, userId));
+await auditedDb.delete(users).where(eq(users.id, 1));
+// ✓ Audit log created automatically
 ```
 
-No manual audit calls.
-No extra code per operation.
+**No manual audit calls needed!** The audit logger automatically intercepts operations and creates audit logs.
+
+## 🎉 No `.returning()` Required!
+
+The audit logger automatically captures data from INSERT, UPDATE, and DELETE operations **without requiring** you to call `.returning()` on every query.
+
+**How it works:**
+
+- If you don't call `.returning()`, the audit logger injects it internally
+- Audit logs are created using the captured data
+- Your code's return value remains unchanged for backward compatibility
+
+**When to use `.returning()`:**
+
+- Only use `.returning()` when **you** need the returned data in your application code
+- The audit logger works whether you use it or not
+
+```typescript
+// Works without .returning()
+await db.insert(users).values({ email: "test@example.com" });
+// Audit log created ✓
+
+// Also works with .returning() when you need the data
+const [user] = await db.insert(users).values({ email: "test@example.com" }).returning();
+// Audit log created ✓ + you get the user object
+```
+
+See [Automatic .returning() Injection](./docs/auto-returning.md) for details.
 
 ## Configuration
 
@@ -223,18 +229,30 @@ All operations inside the callback inherit this context.
 All operations inside a transaction automatically share the same `transaction_id`.
 
 ```ts
-await auditedDb.transaction(async (tx) = {
+await auditedDb.transaction(async (tx) => {
+  // No .returning() needed unless you want the data
+  await tx.insert(users).values({
+    email: "bob@example.com",
+    name: "Bob Builder",
+    role: "user",
+  });
+
+  // Use .returning() when you need the data
   const [user] = await tx
     .insert(users)
-    .values(userData)
+    .values({
+      email: "alice@example.com",
+      name: "Alice",
+    })
     .returning();
 
-  const [post] = await tx
-    .insert(posts)
-    .values({ ...postData, userId: user.id })
-    .returning();
+  await tx.insert(posts).values({
+    title: "My Post",
+    content: "Content",
+    userId: user.id, // Using the returned data
+  });
 
-  // Both audit entries share the same transaction_id
+  // All operations logged with same transaction_id ✓
 });
 ```
 

@@ -4,10 +4,10 @@
  * Run with: pnpm tsx scripts/test-full-flow.ts
  */
 
-// TODO: Remove returning(), it should not be a requirement; for insert, can we capture the insert values from the proxy?
 // TODO: Handle parallel query, multiple queries running at the same time, batching?
 
 // * Implemented, test the following
+// TODO: Remove returning(), it should not be a requirement; for insert, can we capture the insert values from the proxy?
 // TODO: Single statement query fails, shouldn't log
 // TODO: Make sure transaction works, test it
 // TODO: Make storing previous value configurable, since we need to query the prev values?
@@ -120,25 +120,21 @@ async function main() {
 
     // Step 5: Test INSERT
     console.log("\n➕ Step 5: Test automatic INSERT logging");
-    const [user1] = await db
-      .insert(users)
-      .values({
-        email: "alice@example.com",
-        name: "Alice Johnson",
-        role: "admin",
-        password: "secret123",
-      })
-      .returning();
+    const [user1] = await db.insert(users).values({
+      email: "alice@example.com",
+      name: "Alice Johnson",
+      role: "admin",
+      password: "secret123",
+    });
+    // .returning();
     console.log(`   ✓ Created user: ${user1.name} (ID: ${user1.id})`);
 
-    const [user2] = await db
-      .insert(users)
-      .values({
-        email: "bob@example.com",
-        name: "Bob Smith",
-        role: "user",
-      })
-      .returning();
+    const [user2] = await db.insert(users).values({
+      email: "bob@example.com",
+      name: "Bob Smith",
+      role: "user",
+    });
+    // .returning();
     console.log(`   ✓ Created user: ${user2.name} (ID: ${user2.id})`);
 
     // Step 6: Test UPDATE
@@ -146,39 +142,35 @@ async function main() {
     const [updatedUser] = await db
       .update(users)
       .set({ name: "Alice Johnson-Smith", role: "superadmin" })
-      .where(eq(users.id, user1.id))
-      .returning();
+      .where(eq(users.id, user1.id));
+    // .returning();
     console.log(`   ✓ Updated user: ${updatedUser.name}`);
 
     // Step 7: Test TRANSACTION
     console.log("\n🔄 Step 7: Test transaction with multiple operations");
     await db.transaction(async (tx) => {
-      const [author] = await tx
-        .insert(users)
-        .values({
-          email: "charlie@example.com",
-          name: "Charlie Brown",
-          role: "author",
-        })
-        .returning();
+      const [author] = await tx.insert(users).values({
+        email: "charlie@example.com",
+        name: "Charlie Brown",
+        role: "author",
+      });
+      // .returning();
 
-      await tx
-        .insert(posts)
-        .values([
-          {
-            title: "First Post",
-            content: "Hello World!",
-            authorId: author.id,
-            status: "published",
-          },
-          {
-            title: "Second Post",
-            content: "Another post",
-            authorId: author.id,
-            status: "draft",
-          },
-        ])
-        .returning();
+      await tx.insert(posts).values([
+        {
+          title: "First Post",
+          content: "Hello World!",
+          authorId: author.id,
+          status: "published",
+        },
+        {
+          title: "Second Post",
+          content: "Another post",
+          authorId: author.id,
+          status: "draft",
+        },
+      ]);
+      // .returning();
 
       console.log(`   ✓ Created author and 2 posts in transaction`);
     });
@@ -196,11 +188,8 @@ async function main() {
         metadata: { automated: true, reason: "cleanup" },
       },
       async () => {
-        await db
-          .update(posts)
-          .set({ status: "archived" })
-          .where(eq(posts.status, "draft"))
-          .returning();
+        await db.update(posts).set({ status: "archived" }).where(eq(posts.status, "draft"));
+        // .returning();
         console.log(`   ✓ Archived draft posts with SYSTEM context`);
       },
     );

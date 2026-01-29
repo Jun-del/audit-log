@@ -146,10 +146,16 @@ function createExecutionProxy(
   tableRef?: unknown,
 ) {
   let hasIntercepted = false; // Prevent double interception
+  let hasReturning = false; // Track if user called .returning()
 
   const proxy = new Proxy(queryBuilder, {
     get(target, prop) {
       const original = target[prop];
+
+      // Track if .returning() was called
+      if (prop === "returning") {
+        hasReturning = true;
+      }
 
       // Intercept promise methods (then, catch, finally) which trigger execution
       if (prop === "then" || prop === "catch" || prop === "finally") {
@@ -172,16 +178,29 @@ function createExecutionProxy(
             return original?.apply(target, args);
           }
 
+          // For INSERT/UPDATE/DELETE, automatically add .returning() if not present
+          let queryToExecute = target;
+          if (
+            (operation === "insert" || operation === "update" || operation === "delete") &&
+            !hasReturning
+          ) {
+            debug(`Auto-injecting .returning() for ${operation} on ${tableName}`);
+            // Call .returning() on the query builder to get the affected rows
+            if (typeof target.returning === "function") {
+              queryToExecute = target.returning();
+            }
+          }
+
           // Create a promise that executes with audit
           const auditedPromise = (async () => {
             debug(`Executing ${operation} on ${tableName} with audit`);
             return executeWithAudit(
               operation,
               tableName,
-              target,
+              queryToExecute,
               () => {
                 // Execute the query - Drizzle queries are thenable, so we can await them
-                return Promise.resolve(target);
+                return Promise.resolve(queryToExecute);
               },
               [],
               db,
@@ -260,15 +279,17 @@ async function executeWithAudit(
   let beforeState: any[] = [];
 
   try {
-    // For UPDATE/DELETE, capture the "before" state if configure
-    const shouldCapture =
-      (operation === "update" && auditLogger.shouldCaptureOldValues()) ||
-      (operation === "delete" && auditLogger.shouldCaptureDeletedValues());
+    // For UPDATE/DELETE, capture the "before" state if configured
+    if (operation === "update" || operation === "delete") {
+      const shouldCapture =
+        (operation === "update" && auditLogger.shouldCaptureOldValues()) ||
+        (operation === "delete" && auditLogger.shouldCaptureDeletedValues());
 
-    if (shouldCapture) {
-      beforeState = await captureBeforeState(tableName, queryBuilder, db, tableRef);
-    } else {
-      debug(`Skipping before state capture for ${operation} (not configured)`);
+      if (shouldCapture) {
+        beforeState = await captureBeforeState(tableName, queryBuilder, db, tableRef);
+      } else {
+        debug(`Skipping before state capture for ${operation} (not configured)`);
+      }
     }
 
     // Execute the actual operation
@@ -377,12 +398,15 @@ async function createAuditLogs(
       break;
 
     case "delete":
+      // For delete, only log if we captured beforeState
+      // If captureDeletedValues is false, beforeState will be empty and we skip logging
       if (beforeState.length > 0) {
         debug(`Logging ${beforeState.length} DELETE operations`);
         await auditLogger.logDelete(tableName, beforeState);
       } else {
         debug("Skipping DELETE audit: captureDeletedValues is disabled or no records matched");
       }
+      break;
   }
 }
 
