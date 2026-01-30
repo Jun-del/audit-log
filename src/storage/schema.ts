@@ -63,8 +63,13 @@ export const auditLogs = pgTable(
  * Run this to set up the database
  */
 export const createAuditTableSQL = `
+-- Prevent concurrent test runs from racing on schema creation
+SELECT pg_advisory_xact_lock(913742, 540129);
+
+CREATE SEQUENCE IF NOT EXISTS audit_logs_id_seq;
+
 CREATE TABLE IF NOT EXISTS audit_logs (
-  id BIGSERIAL PRIMARY KEY,
+  id BIGINT PRIMARY KEY DEFAULT nextval('audit_logs_id_seq'),
   
   user_id VARCHAR(255),
   ip_address VARCHAR(45),
@@ -85,6 +90,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   
   deleted_at TIMESTAMPTZ
 );
+
+ALTER SEQUENCE audit_logs_id_seq OWNED BY audit_logs.id;
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_table_record ON audit_logs(table_name, record_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id) WHERE user_id IS NOT NULL;

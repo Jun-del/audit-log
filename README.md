@@ -312,8 +312,6 @@ const activity = await auditedDb
 - [x] Phase 2 — Automatic interception (current)
 - [ ] Phase 3 — Async / batched writes
 - [ ] Phase 4 — ORM adapters (Prisma, TypeORM)
-- [ ] Phase 5 — Restore / rollback helpers
-- [ ] Phase 6 — PostgreSQL triggers (opt-in)
 
 ## Contributing
 
