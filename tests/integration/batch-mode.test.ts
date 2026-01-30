@@ -40,13 +40,12 @@ describe("Batch Mode Integration", () => {
 
   afterAll(async () => {
     await originalDb.execute("DROP TABLE IF EXISTS batch_test_users CASCADE");
-    await originalDb.execute("DROP TABLE IF EXISTS audit_logs CASCADE");
     await client.end();
   });
 
   beforeEach(async () => {
     await originalDb.execute("DELETE FROM batch_test_users");
-    await originalDb.execute("DELETE FROM audit_logs");
+    await originalDb.execute("DELETE FROM audit_logs WHERE table_name = 'batch_test_users'");
   });
 
   describe("Basic batching", () => {
@@ -337,7 +336,7 @@ describe("Batch Mode Integration", () => {
       const immediateDuration = Date.now() - immediateStart;
 
       await originalDb.execute("DELETE FROM batch_test_users");
-      await originalDb.execute("DELETE FROM audit_logs");
+      await originalDb.execute("DELETE FROM audit_logs WHERE table_name = 'batch_test_users'");
 
       // Batch mode
       const batchLogger = createAuditLogger(originalDb, {
