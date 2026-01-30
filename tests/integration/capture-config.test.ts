@@ -1,12 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, serial, text, varchar } from "drizzle-orm/pg-core";
 import { Client } from "pg";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { createAuditLogger, createAuditTableSQL, auditLogs } from "../../src/index.js";
 
-// Test schema
-const testUsers = pgTable("config_test_users", {
+// Generate unique table name to avoid conflicts
+const TEST_ID = `config_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+const TABLE_NAME = `config_test_users_${TEST_ID}`;
+
+// Test schema with unique table name
+const testUsers = pgTable(TABLE_NAME, {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull(),
   name: text("name"),
@@ -26,11 +30,12 @@ describe("Capture Configuration", () => {
     await client.connect();
     originalDb = drizzle(client);
 
-    // Create audit table and test table
+    // Create audit table (idempotent)
     await originalDb.execute(createAuditTableSQL);
+
+    // Create test table with unique name
     await originalDb.execute(`
-      DROP TABLE IF EXISTS config_test_users CASCADE;
-      CREATE TABLE config_test_users (
+      CREATE TABLE "${TABLE_NAME}" (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
         name TEXT
@@ -39,20 +44,24 @@ describe("Capture Configuration", () => {
   });
 
   afterAll(async () => {
-    await originalDb.execute("DROP TABLE IF EXISTS config_test_users CASCADE");
-    await originalDb.execute("DROP TABLE IF EXISTS audit_logs CASCADE");
+    // Clean up only our test table
+    await originalDb.execute(`DROP TABLE IF EXISTS "${TABLE_NAME}" CASCADE`);
+    // Clean up only our audit logs
+    await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
     await client.end();
   });
 
   beforeEach(async () => {
-    await originalDb.execute("DELETE FROM config_test_users");
-    await originalDb.execute("DELETE FROM audit_logs");
+    // Clear data before each test
+    await originalDb.execute(`TRUNCATE TABLE "${TABLE_NAME}" RESTART IDENTITY CASCADE`);
+    // Only delete audit logs for our table
+    await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
   });
 
   describe("captureOldValues configuration", () => {
     it("should capture old values when enabled", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["config_test_users"],
+        tables: [TABLE_NAME],
         captureOldValues: true,
       });
 
@@ -69,7 +78,10 @@ describe("Capture Configuration", () => {
       await db.update(testUsers).set({ name: "Updated Name" }).where(eq(testUsers.id, user.id));
 
       // Check audit log
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "UPDATE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "UPDATE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].oldValues).toBeDefined();
@@ -79,7 +91,7 @@ describe("Capture Configuration", () => {
 
     it("should NOT capture old values when disabled (default)", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["config_test_users"],
+        tables: [TABLE_NAME],
         captureOldValues: false, // Default
       });
 
@@ -96,7 +108,10 @@ describe("Capture Configuration", () => {
       await db.update(testUsers).set({ name: "Updated Name" }).where(eq(testUsers.id, user.id));
 
       // Check audit log
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "UPDATE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "UPDATE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       // Should still create an audit log, but without old values
       expect(logs).toHaveLength(1);
@@ -108,7 +123,7 @@ describe("Capture Configuration", () => {
   describe("DELETE operations (always logged via .returning())", () => {
     it("should always capture deleted data using auto-injected .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["config_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db, setContext } = auditLogger;
@@ -120,13 +135,17 @@ describe("Capture Configuration", () => {
         .values({ email: "delete@example.com", name: "To Be Deleted" })
         .returning();
 
-      await originalDb.execute("DELETE FROM audit_logs");
+      // Clear insert audit log
+      await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
 
       // Delete the user - .returning() is auto-injected
       await db.delete(testUsers).where(eq(testUsers.id, user.id));
 
       // Check audit log
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "DELETE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "DELETE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].oldValues).toBeDefined();
@@ -139,7 +158,7 @@ describe("Capture Configuration", () => {
 
     it("should not create audit log when DELETE matches no records", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["config_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db, setContext } = auditLogger;
@@ -149,7 +168,10 @@ describe("Capture Configuration", () => {
       await db.delete(testUsers).where(eq(testUsers.id, 99999));
 
       // Check audit log
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "DELETE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "DELETE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       // Should not create audit log when nothing was deleted
       expect(logs).toHaveLength(0);
@@ -159,7 +181,7 @@ describe("Capture Configuration", () => {
   describe("Performance benefits", () => {
     it("should skip SELECT query when captureOldValues is false", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["config_test_users"],
+        tables: [TABLE_NAME],
         captureOldValues: false,
       });
 
@@ -171,10 +193,16 @@ describe("Capture Configuration", () => {
         .values({ email: "test@example.com", name: "Name" })
         .returning();
 
+      // Clear insert audit log
+      await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
+
       // This update won't trigger a SELECT before the UPDATE
       await db.update(testUsers).set({ name: "New Name" }).where(eq(testUsers.id, user.id));
 
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "UPDATE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "UPDATE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].oldValues).toBeNull();

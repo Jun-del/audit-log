@@ -1,12 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, serial, text, varchar } from "drizzle-orm/pg-core";
 import { Client } from "pg";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { createAuditLogger, createAuditTableSQL, auditLogs } from "../../src/index.js";
 
-// Test schema
-const testUsers = pgTable("auto_returning_test_users", {
+// Generate unique table name to avoid conflicts
+const TEST_ID = `returning_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+const TABLE_NAME = `auto_returning_test_users_${TEST_ID}`;
+
+// Test schema with unique table name
+const testUsers = pgTable(TABLE_NAME, {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull(),
   name: text("name"),
@@ -26,11 +30,12 @@ describe("Automatic .returning() Injection", () => {
     await client.connect();
     originalDb = drizzle(client);
 
-    // Create audit table and test table
+    // Create audit table (idempotent)
     await originalDb.execute(createAuditTableSQL);
+
+    // Create test table with unique name
     await originalDb.execute(`
-      DROP TABLE IF EXISTS auto_returning_test_users CASCADE;
-      CREATE TABLE auto_returning_test_users (
+      CREATE TABLE "${TABLE_NAME}" (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
         name TEXT
@@ -39,20 +44,24 @@ describe("Automatic .returning() Injection", () => {
   });
 
   afterAll(async () => {
-    await originalDb.execute("DROP TABLE IF EXISTS auto_returning_test_users CASCADE");
-    await originalDb.execute("DROP TABLE IF EXISTS audit_logs CASCADE");
+    // Clean up only our test table
+    await originalDb.execute(`DROP TABLE IF EXISTS "${TABLE_NAME}" CASCADE`);
+    // Clean up only our audit logs
+    await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
     await client.end();
   });
 
   beforeEach(async () => {
-    await originalDb.execute("DELETE FROM auto_returning_test_users");
-    await originalDb.execute("DELETE FROM audit_logs");
+    // Clear data before each test
+    await originalDb.execute(`TRUNCATE TABLE "${TABLE_NAME}" RESTART IDENTITY CASCADE`);
+    // Only delete audit logs for our table
+    await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
   });
 
   describe("INSERT without .returning()", () => {
     it("should automatically capture inserted data and create audit log", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db, setContext } = auditLogger;
@@ -65,10 +74,13 @@ describe("Automatic .returning() Injection", () => {
       });
 
       // Check that audit log was created
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "INSERT"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "INSERT"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
-      expect(logs[0].tableName).toBe("auto_returning_test_users");
+      expect(logs[0].tableName).toBe(TABLE_NAME);
       expect(logs[0].newValues).toBeDefined();
       expect(logs[0].newValues).toMatchObject({
         email: "auto@example.com",
@@ -81,7 +93,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should work with bulk inserts without .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db, setContext } = auditLogger;
@@ -95,7 +107,10 @@ describe("Automatic .returning() Injection", () => {
       ]);
 
       // Check that all 3 were audited
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "INSERT"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "INSERT"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(3);
       expect(logs[0].newValues).toHaveProperty("email");
@@ -107,7 +122,7 @@ describe("Automatic .returning() Injection", () => {
   describe("UPDATE without .returning()", () => {
     it("should automatically capture updated data and create audit log", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
         captureOldValues: true, // Enable to see before/after
       });
 
@@ -121,13 +136,16 @@ describe("Automatic .returning() Injection", () => {
         .returning();
 
       // Clear audit logs from insert
-      await originalDb.execute("DELETE FROM audit_logs");
+      await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
 
       // Update WITHOUT .returning() - should still be audited
       await db.update(testUsers).set({ name: "Updated Name" }).where(eq(testUsers.id, user.id));
 
       // Check that update was audited
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "UPDATE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "UPDATE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].oldValues).toMatchObject({ name: "Original Name" });
@@ -137,7 +155,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should work when captureOldValues is false", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
         captureOldValues: false,
       });
 
@@ -150,12 +168,15 @@ describe("Automatic .returning() Injection", () => {
         .values({ email: "test@example.com", name: "Name" })
         .returning();
 
-      await originalDb.execute("DELETE FROM audit_logs");
+      await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
 
       // Update WITHOUT .returning() and without captureOldValues
       await db.update(testUsers).set({ name: "New Name" }).where(eq(testUsers.id, user.id));
 
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "UPDATE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "UPDATE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].oldValues).toBeNull();
@@ -166,7 +187,7 @@ describe("Automatic .returning() Injection", () => {
   describe("DELETE without .returning()", () => {
     it("should automatically capture deleted data", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db, setContext } = auditLogger;
@@ -178,12 +199,15 @@ describe("Automatic .returning() Injection", () => {
         .values({ email: "delete@example.com", name: "To Delete" })
         .returning();
 
-      await originalDb.execute("DELETE FROM audit_logs");
+      await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
 
       // Delete WITHOUT .returning() - should still be audited
       await db.delete(testUsers).where(eq(testUsers.id, user.id));
 
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "DELETE"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "DELETE"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].oldValues).toMatchObject({
@@ -196,7 +220,7 @@ describe("Automatic .returning() Injection", () => {
   describe("WITH explicit .returning() - should still work", () => {
     it("should respect user's explicit .returning() call", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db, setContext } = auditLogger;
@@ -215,7 +239,10 @@ describe("Automatic .returning() Injection", () => {
       expect(result[0].email).toBe("explicit@example.com");
 
       // And audit log should be created
-      const logs = await originalDb.select().from(auditLogs).where(eq(auditLogs.action, "INSERT"));
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "INSERT"), eq(auditLogs.tableName, TABLE_NAME)));
 
       expect(logs).toHaveLength(1);
       expect(logs[0].newValues).toMatchObject({
@@ -228,7 +255,7 @@ describe("Automatic .returning() Injection", () => {
   describe("Return value handling", () => {
     it("should NOT return data when user didn't call .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db } = auditLogger;
@@ -241,14 +268,12 @@ describe("Automatic .returning() Injection", () => {
 
       // The result should be the Drizzle query result (not the inserted row)
       // This maintains backward compatibility with existing code
-      // Note: Drizzle returns different things for different drivers
-      // For postgres, it's typically an empty array or undefined when no .returning()
       expect(result).toBeDefined();
     });
 
     it("should return inserted data when user calls .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: ["auto_returning_test_users"],
+        tables: [TABLE_NAME],
       });
 
       const { db } = auditLogger;
