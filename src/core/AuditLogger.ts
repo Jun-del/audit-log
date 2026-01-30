@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { createDeleteAuditLogs } from "../capture/delete.js";
 import { createInsertAuditLogs } from "../capture/insert.js";
 import { createUpdateAuditLogs } from "../capture/update.js";
+import { BatchAuditWriter } from "../storage/batch-writer.js";
 import { AuditWriter } from "../storage/writer.js";
 import { AuditContextManager } from "./context.js";
 import { createInterceptedDb } from "./interceptor.js";
@@ -15,7 +16,8 @@ import { createInterceptedDb } from "./interceptor.js";
 export class AuditLogger {
   private config: NormalizedConfig;
   private contextManager = new AuditContextManager();
-  private writer: AuditWriter;
+  private writer: AuditWriter | null = null;
+  private batchWriter: BatchAuditWriter | null = null;
   private customWriter?: (logs: any[], context: AuditContext | undefined) => Promise<void> | void;
 
   constructor(
@@ -23,14 +25,38 @@ export class AuditLogger {
     config: AuditConfig,
   ) {
     this.config = this.normalizeConfig(config);
-    this.writer = new AuditWriter(db, this.config);
     this.customWriter = config.customWriter;
+
+    // Initialize appropriate writer
+    if (this.config.batch) {
+      // Use batch writer
+      this.batchWriter = new BatchAuditWriter(db, {
+        auditTable: this.config.auditTable,
+        batchSize: this.config.batch.batchSize,
+        flushInterval: this.config.batch.flushInterval,
+        strictMode: this.config.strictMode,
+        waitForWrite: this.config.batch.waitForWrite,
+        getUserId: this.config.getUserId,
+        getMetadata: this.config.getMetadata,
+      });
+    } else {
+      // Use immediate writer
+      this.writer = new AuditWriter(db, this.config);
+    }
   }
 
   /**
    * Normalize configuration with defaults
    */
   private normalizeConfig(config: AuditConfig): NormalizedConfig {
+    const batchConfig = config.batch
+      ? {
+          batchSize: config.batch.batchSize ?? 100,
+          flushInterval: config.batch.flushInterval ?? 1000,
+          waitForWrite: config.batch.waitForWrite ?? false,
+        }
+      : null;
+
     return {
       tables: config.tables,
       fields: config.fields || {},
@@ -40,6 +66,7 @@ export class AuditLogger {
       getUserId: config.getUserId || (() => undefined),
       getMetadata: config.getMetadata || (() => ({})),
       captureOldValues: config.captureOldValues ?? false,
+      batch: batchConfig,
       customWriter: config.customWriter,
     };
   }
@@ -135,8 +162,20 @@ export class AuditLogger {
       if (this.customWriter) {
         // Use custom writer
         await this.customWriter(logs, context);
-      } else {
-        // Use default writer
+      } else if (this.batchWriter) {
+        // Use batch writer
+        const writePromise = this.batchWriter.queueAuditLogs(logs, context);
+
+        // Wait for write if configured
+        if (this.config.batch?.waitForWrite || this.config.strictMode) {
+          await writePromise;
+        } else {
+          writePromise.catch((error) => {
+            console.error("Failed to write audit logs:", error);
+          });
+        }
+      } else if (this.writer) {
+        // Use immediate writer
         await this.writer.writeAuditLogs(logs, context);
       }
     } catch (error) {
@@ -217,5 +256,37 @@ export class AuditLogger {
     };
 
     await this.writeAuditLogs([log]);
+  }
+
+  /**
+   * Manually flush pending batch logs (only works with batch mode)
+   */
+  async flush(): Promise<void> {
+    if (this.batchWriter) {
+      await this.batchWriter.flush();
+    }
+  }
+
+  /**
+   * Gracefully shutdown the audit logger
+   * Flushes all pending logs before shutting down
+   */
+  async shutdown(): Promise<void> {
+    if (this.batchWriter) {
+      await this.batchWriter.shutdown();
+    }
+  }
+
+  /**
+   * Get batch writer stats (only available in batch mode)
+   */
+  getStats():
+    | {
+        queueSize: number;
+        isWriting: boolean;
+        isShuttingDown: boolean;
+      }
+    | undefined {
+    return this.batchWriter?.getStats();
   }
 }
