@@ -7,7 +7,7 @@
   "author": "White Room",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jun-del/wr-audit-log"
+    "url": "https://github.com/Jun-del/wr-audit-logger"
   },
   "files": [
     "dist",
