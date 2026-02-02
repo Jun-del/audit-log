@@ -14,7 +14,7 @@ describe("Critical Bug Fixes", () => {
         }),
       };
 
-      const { BatchAuditWriter } = await import("../src/storage/batch-writer.js");
+      const { BatchAuditWriter } = await import("../../src/storage/batch-writer.js");
 
       const writer = new BatchAuditWriter(mockDb as any, {
         auditTable: "audit_logs",
@@ -144,7 +144,7 @@ describe("Critical Bug Fixes", () => {
         execute: vi.fn().mockRejectedValue(new Error("DB error")),
       };
 
-      const { BatchAuditWriter } = await import("../src/storage/batch-writer.js");
+      const { BatchAuditWriter } = await import("../../src/storage/batch-writer.js");
 
       const writer = new BatchAuditWriter(mockDb as any, {
         auditTable: "audit_logs",
@@ -193,7 +193,7 @@ describe("Critical Bug Fixes", () => {
         execute: vi.fn().mockResolvedValue({ rows: [] }),
       };
 
-      const { BatchAuditWriter } = await import("../src/storage/batch-writer.js");
+      const { BatchAuditWriter } = await import("../../src/storage/batch-writer.js");
 
       const writer = new BatchAuditWriter(mockDb as any, {
         auditTable: "audit_logs",
