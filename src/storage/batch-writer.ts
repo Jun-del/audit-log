@@ -4,6 +4,12 @@ import { sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { safeSerialize } from "../utils/serializer.js";
 
+export interface BatchAuditWriterStats {
+  queueSize: number;
+  isWriting: boolean;
+  isShuttingDown: boolean;
+}
+
 interface QueuedLog {
   log: AuditLog;
   context: AuditContext | undefined;
@@ -313,11 +319,7 @@ export class BatchAuditWriter {
   /**
    * Get writer stats (for monitoring)
    */
-  getStats(): {
-    queueSize: number;
-    isWriting: boolean;
-    isShuttingDown: boolean;
-  } {
+  getStats(): BatchAuditWriterStats {
     return {
       queueSize: this.queue.length,
       isWriting: this.activeWritePromise !== null,

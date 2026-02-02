@@ -5,6 +5,8 @@ import { AuditLogger } from "./core/AuditLogger.js";
 // Re-export types
 export type { AuditConfig, AuditContext, BatchWriterStats } from "./types/config.js";
 export type { AuditAction, AuditLog, AuditLogEntry, StoredAuditLog } from "./types/audit.js";
+export type { BatchAuditWriterStats } from "./storage/batch-writer.js";
+export type { BatchedCustomWriterStats } from "./storage/batched-custom-writer.js";
 
 // Re-export schema and migration
 export { auditLogs, createAuditTableSQL } from "./storage/schema.js";

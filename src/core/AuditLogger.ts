@@ -1,3 +1,5 @@
+import type { BatchAuditWriterStats } from "../storage/batch-writer.js";
+import type { BatchedCustomWriterStats } from "../storage/batched-custom-writer.js";
 import type { AuditLog } from "../types/audit.js";
 import type { AuditConfig, AuditContext, NormalizedConfig } from "../types/config.js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -491,13 +493,7 @@ export class AuditLogger {
    * }
    * ```
    */
-  getStats():
-    | {
-        queueSize: number;
-        isWriting: boolean;
-        isShuttingDown: boolean;
-      }
-    | undefined {
+  getStats(): BatchAuditWriterStats | BatchedCustomWriterStats | undefined {
     if (this.batchWriter) {
       return this.batchWriter.getStats();
     }

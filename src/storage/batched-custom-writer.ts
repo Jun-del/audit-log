@@ -1,6 +1,12 @@
 import type { AuditLog } from "../types/audit.js";
 import type { AuditContext } from "../types/config.js";
 
+export interface BatchedCustomWriterStats {
+  queueSize: number;
+  isWriting: boolean;
+  isShuttingDown: boolean;
+}
+
 interface QueuedLog {
   log: AuditLog;
   context: AuditContext | undefined;
@@ -296,11 +302,7 @@ export class BatchedCustomWriter {
   /**
    * Get writer stats (for monitoring)
    */
-  getStats(): {
-    queueSize: number;
-    isWriting: boolean;
-    isShuttingDown: boolean;
-  } {
+  getStats(): BatchedCustomWriterStats {
     return {
       queueSize: this.queue.length,
       isWriting: this.activeWritePromise !== null,
