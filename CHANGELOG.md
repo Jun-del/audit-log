@@ -4,6 +4,7 @@
 
 ### Patch Changes
 
+- Preserve Drizzle schema types in audited db.
 - 4addcb8: fix: store null metadata when empty
 
 ## 0.1.0
