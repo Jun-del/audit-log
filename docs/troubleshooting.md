@@ -62,9 +62,11 @@ await initializeAuditLogging(db);
 Or run the SQL manually:
 
 ```typescript
-import { createAuditTableSQL } from "wr-audit-logger";
+import { createAuditTableSQL, createAuditTableSQLFor } from "wr-audit-logger";
 
-await db.execute(createAuditTableSQL);
+await db.execute(createAuditTableSQL); // default table name
+// or custom table name
+await db.execute(createAuditTableSQLFor("my_audit_logs"));
 ```
 
 ### Problem: Migration fails

@@ -29,6 +29,13 @@ const db = drizzle(client);
 await db.execute(createAuditTableSQL);
 ```
 
+Custom table name:
+
+```ts
+import { createAuditTableSQLFor } from "wr-audit-logger";
+await db.execute(createAuditTableSQLFor("my_audit_logs"));
+```
+
 ### 2. Create an audit logger (wraps your db)
 
 ```ts
@@ -150,6 +157,7 @@ interface AuditConfig {
   excludeFields?: string[];
 
   // Audit table name (default: audit_logs)
+  // If you change this, use createAuditTableSQLFor() when creating schema
   auditTable?: string;
 
   // Fail the DB operation if audit logging fails (default: false)

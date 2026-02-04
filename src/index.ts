@@ -14,7 +14,7 @@ export type { BatchAuditWriterStats } from "./storage/batch-writer.js";
 export type { BatchedCustomWriterStats } from "./storage/batched-custom-writer.js";
 
 // Re-export schema and migration
-export { auditLogs, createAuditTableSQL } from "./storage/schema.js";
+export { auditLogs, createAuditTableSQL, createAuditTableSQLFor } from "./storage/schema.js";
 
 // Re-export utilities
 export { initializeAuditLogging, checkAuditSetup, getAuditStats } from "./utils/migration.js";
