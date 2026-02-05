@@ -101,6 +101,11 @@ export interface AuditConfig<TSchema extends Record<string, unknown> = Record<st
   getMetadata?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
 
   /**
+   * Error logger hook (called with sanitized error by default)
+   */
+  logError?: (message: string, error: unknown) => void;
+
+  /**
    * How UPDATE values are stored
    * - "changed": store only changed fields (requires SELECT before UPDATE)
    * - "full": store full row after UPDATE (no extra SELECT)
@@ -156,6 +161,13 @@ export interface BatchConfig {
    * @minimum 1
    */
   batchSize?: number;
+
+  /**
+   * Maximum number of logs allowed in queue before rejecting
+   * @default 10000
+   * @minimum 1
+   */
+  maxQueueSize?: number;
 
   /**
    * Interval in milliseconds to automatically flush pending logs
@@ -232,6 +244,7 @@ export type NormalizedConfig<TSchema extends Record<string, unknown> = Record<st
   Required<Omit<AuditConfig<TSchema>, "getUserId" | "getMetadata" | "customWriter" | "batch">> & {
     getUserId: () => string | undefined | Promise<string | undefined>;
     getMetadata: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+    logError: (message: string, error: unknown) => void;
     updateValuesMode: "changed" | "full";
     batch: Required<BatchConfig> | null;
     auditColumnMap: AuditColumnMap;

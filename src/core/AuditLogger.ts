@@ -17,6 +17,7 @@ import { BatchAuditWriter } from "../storage/batch-writer.js";
 import { BatchedCustomWriter } from "../storage/batched-custom-writer.js";
 import { DEFAULT_AUDIT_COLUMN_MAP } from "../storage/column-map.js";
 import { AuditWriter } from "../storage/writer.js";
+import { sanitizeError } from "../utils/logging.js";
 import { AuditContextManager } from "./context.js";
 import { createInterceptedDb } from "./interceptor.js";
 
@@ -72,9 +73,11 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
       // Use batched custom writer
       this.batchedCustomWriter = new BatchedCustomWriter(config.customWriter as any, {
         batchSize: this.config.batch.batchSize,
+        maxQueueSize: this.config.batch.maxQueueSize,
         flushInterval: this.config.batch.flushInterval,
         strictMode: this.config.strictMode,
         waitForWrite: this.config.batch.waitForWrite,
+        logError: this.config.logError,
       });
     } else if (this.config.batch) {
       // Use batch writer (standard)
@@ -82,11 +85,13 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
         auditTable: this.config.auditTable,
         auditColumnMap: this.config.auditColumnMap,
         batchSize: this.config.batch.batchSize,
+        maxQueueSize: this.config.batch.maxQueueSize,
         flushInterval: this.config.batch.flushInterval,
         strictMode: this.config.strictMode,
         getUserId: this.config.getUserId,
         getMetadata: this.config.getMetadata,
         waitForWrite: this.config.batch.waitForWrite,
+        logError: this.config.logError,
       });
     } else {
       // Use immediate writer
@@ -103,6 +108,12 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
     if (config.batch) {
       if (config.batch.batchSize <= 0) {
         throw new Error("batchSize must be greater than 0");
+      }
+      if (config.batch.maxQueueSize <= 0) {
+        throw new Error("maxQueueSize must be greater than 0");
+      }
+      if (config.batch.maxQueueSize < config.batch.batchSize) {
+        throw new Error("maxQueueSize must be >= batchSize");
       }
       if (config.batch.flushInterval <= 0) {
         throw new Error("flushInterval must be greater than 0");
@@ -137,6 +148,7 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
     const batchConfig = config.batch
       ? {
           batchSize: config.batch.batchSize ?? 100,
+          maxQueueSize: config.batch.maxQueueSize ?? 10000,
           flushInterval: config.batch.flushInterval ?? 1000,
           waitForWrite: config.batch.waitForWrite ?? false,
         }
@@ -152,6 +164,11 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
       strictMode: config.strictMode ?? false,
       getUserId: config.getUserId || (() => undefined),
       getMetadata: config.getMetadata || (() => ({})),
+      logError:
+        config.logError ||
+        ((message, error) => {
+          console.error(message, sanitizeError(error));
+        }),
       updateValuesMode: config.updateValuesMode ?? "changed",
       batch: batchConfig,
       customWriter: config.customWriter,
@@ -303,7 +320,7 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
           await writePromise;
         } else {
           writePromise.catch((error) => {
-            console.error("[AUDIT] Failed to write audit logs:", error);
+            this.config.logError("[AUDIT] Failed to write audit logs:", error);
           });
         }
       } else if (this.customWriter) {
@@ -318,7 +335,7 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
           await writePromise;
         } else {
           writePromise.catch((error) => {
-            console.error("[AUDIT] Failed to write audit logs:", error);
+            this.config.logError("[AUDIT] Failed to write audit logs:", error);
           });
         }
       } else if (this.writer) {
@@ -329,7 +346,7 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
       if (this.config.strictMode) {
         throw error;
       }
-      console.error("[AUDIT] Failed to write audit logs:", error);
+      this.config.logError("[AUDIT] Failed to write audit logs:", error);
     }
   }
 

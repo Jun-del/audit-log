@@ -13,11 +13,13 @@ describe("BatchAuditWriter", () => {
     const writer = new BatchAuditWriter(db as any, {
       auditTable: "audit_logs",
       batchSize: 1,
+      maxQueueSize: 100,
       flushInterval: 60000,
       strictMode: false,
       waitForWrite: false,
       getUserId: () => undefined,
       getMetadata: () => ({}),
+      logError: () => {},
     });
 
     await writer.queueAuditLogs(
@@ -50,11 +52,13 @@ describe("BatchAuditWriter", () => {
     const writer = new BatchAuditWriter(db as any, {
       auditTable: "audit_logs",
       batchSize: 1,
+      maxQueueSize: 100,
       flushInterval: 60000,
       strictMode: false,
       waitForWrite: true,
       getUserId: () => undefined,
       getMetadata: () => ({}),
+      logError: () => {},
     });
 
     await writer.queueAuditLogs(

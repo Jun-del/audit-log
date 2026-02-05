@@ -38,7 +38,7 @@ export class BatchAuditWriter {
   private static shutdownAll(): void {
     for (const instance of Array.from(BatchAuditWriter.instances)) {
       instance.shutdown().catch((error) => {
-        console.error("Failed to shutdown batch audit writer:", error);
+        instance.logError("Failed to shutdown batch audit writer:", error);
       });
     }
   }
@@ -81,11 +81,13 @@ export class BatchAuditWriter {
       auditTable: string;
       auditColumnMap: AuditColumnMap;
       batchSize: number;
+      maxQueueSize: number;
       flushInterval: number;
       strictMode: boolean;
       waitForWrite: boolean;
       getUserId: () => string | undefined | Promise<string | undefined>;
       getMetadata: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+      logError: (message: string, error: unknown) => void;
     },
   ) {
     // Start flush timer
@@ -104,6 +106,10 @@ export class BatchAuditWriter {
     }
 
     if (logs.length === 0) return;
+
+    if (this.queue.length + logs.length > this.config.maxQueueSize) {
+      throw new Error("BatchAuditWriter queue capacity exceeded");
+    }
 
     // Resolve user ID and metadata once for the entire batch
     const userId = await this.config.getUserId();
@@ -137,7 +143,7 @@ export class BatchAuditWriter {
       // Always log errors, don't silently swallow them
       flushPromise.catch((error) => {
         this.lastError = error as Error;
-        console.error("[AUDIT] Batch flush failed:", error);
+        this.logError("[AUDIT] Batch flush failed:", error);
       });
 
       // Wait for flush in strict/sync mode
@@ -152,7 +158,7 @@ export class BatchAuditWriter {
       // Log errors instead of completely swallowing them
       promises.forEach((promise) => {
         promise.catch((err) => {
-          console.error("[AUDIT] Async write failed:", err);
+          this.logError("[AUDIT] Async write failed:", err);
         });
       });
     }
@@ -177,10 +183,10 @@ export class BatchAuditWriter {
         .catch((error) => {
           // Always log scheduled flush errors
           this.lastError = error as Error;
-          console.error("[AUDIT] Scheduled flush failed:", error);
+          this.logError("[AUDIT] Scheduled flush failed:", error);
           if (this.config.strictMode) {
             // In strict mode, this is critical
-            console.error("[AUDIT] CRITICAL: Audit logging failure in strict mode");
+            this.logError("[AUDIT] CRITICAL: Audit logging failure in strict mode", error);
           }
         })
         .finally(() => {
@@ -265,7 +271,7 @@ export class BatchAuditWriter {
     } catch (error) {
       // Always log the actual error before rejecting
       this.lastError = error as Error;
-      console.error("[AUDIT] Database write failed:", error);
+      this.logError("[AUDIT] Database write failed:", error);
 
       // Reject all promises
       items.forEach((item) => item.reject(error as Error));
@@ -323,5 +329,9 @@ export class BatchAuditWriter {
    */
   getLastError(): Error | null {
     return this.lastError;
+  }
+
+  private logError(message: string, error: unknown): void {
+    this.config.logError(message, error);
   }
 }

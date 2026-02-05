@@ -39,7 +39,7 @@ export class AuditWriter {
         throw error;
       }
       // Log error but don't fail the operation
-      console.error("[AUDIT] Failed to write audit logs:", error);
+      this.config.logError("[AUDIT] Failed to write audit logs:", error);
     }
   }
 

@@ -34,7 +34,7 @@ export class BatchedCustomWriter {
   private static shutdownAll(): void {
     for (const instance of Array.from(BatchedCustomWriter.instances)) {
       instance.shutdown().catch((error) => {
-        console.error("Failed to shutdown batched custom writer:", error);
+        instance.logError("Failed to shutdown batched custom writer:", error);
       });
     }
   }
@@ -83,9 +83,11 @@ export class BatchedCustomWriter {
     ) => Promise<void> | void,
     private config: {
       batchSize: number;
+      maxQueueSize: number;
       flushInterval: number;
       strictMode: boolean;
       waitForWrite: boolean;
+      logError: (message: string, error: unknown) => void;
     },
   ) {
     // Start flush timer
@@ -104,6 +106,10 @@ export class BatchedCustomWriter {
     }
 
     if (logs.length === 0) return;
+
+    if (this.queue.length + logs.length > this.config.maxQueueSize) {
+      throw new Error("BatchedCustomWriter queue capacity exceeded");
+    }
 
     // Create promises for each log
     const promises = logs.map((log) => {
@@ -126,7 +132,7 @@ export class BatchedCustomWriter {
 
       // Log errors instead of silently swallowing
       flushPromise.catch((error) => {
-        console.error("[AUDIT] Custom writer flush failed:", error);
+        this.logError("[AUDIT] Custom writer flush failed:", error);
         if (this.config.strictMode) {
           throw error;
         }
@@ -144,7 +150,7 @@ export class BatchedCustomWriter {
       // Log errors instead of completely swallowing them
       promises.forEach((promise) => {
         promise.catch((err) => {
-          console.error("[AUDIT] Custom writer async write failed:", err);
+          this.logError("[AUDIT] Custom writer async write failed:", err);
         });
       });
     }
@@ -166,9 +172,9 @@ export class BatchedCustomWriter {
       this.flush()
         .catch((error) => {
           // Always log scheduled flush errors
-          console.error("[AUDIT] Custom writer scheduled flush failed:", error);
+          this.logError("[AUDIT] Custom writer scheduled flush failed:", error);
           if (this.config.strictMode) {
-            console.error("[AUDIT] CRITICAL: Custom writer failure in strict mode");
+            this.logError("[AUDIT] CRITICAL: Custom writer failure in strict mode", error);
           }
         })
         .finally(() => {
@@ -234,7 +240,7 @@ export class BatchedCustomWriter {
           groupItems.forEach((item) => item.resolve());
         } catch (error) {
           // Log error before rejecting
-          console.error("[AUDIT] Custom writer execution failed:", error);
+          this.logError("[AUDIT] Custom writer execution failed:", error);
 
           // Reject all promises in this group
           groupItems.forEach((item) => item.reject(error as Error));
@@ -243,7 +249,7 @@ export class BatchedCustomWriter {
       }
     } catch (error) {
       // Log the actual error
-      console.error("[AUDIT] Custom writer batch failed:", error);
+      this.logError("[AUDIT] Custom writer batch failed:", error);
 
       // If we couldn't group properly, reject all
       items.forEach((item) => item.reject(error as Error));
@@ -306,5 +312,9 @@ export class BatchedCustomWriter {
       isWriting: this.activeWritePromise !== null,
       isShuttingDown: this.isShuttingDown,
     };
+  }
+
+  private logError(message: string, error: unknown): void {
+    this.config.logError(message, error);
   }
 }

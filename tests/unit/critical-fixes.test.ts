@@ -19,11 +19,13 @@ describe("Critical Bug Fixes", () => {
       const writer = new BatchAuditWriter(mockDb as any, {
         auditTable: "audit_logs",
         batchSize: 5,
+        maxQueueSize: 100,
         flushInterval: 60000,
         strictMode: false,
         waitForWrite: false,
         getUserId: () => "test-user",
         getMetadata: () => ({}),
+        logError: () => {},
       });
 
       // Queue 5 logs (triggers flush)
@@ -138,7 +140,7 @@ describe("Critical Bug Fixes", () => {
 
   describe("Fix #5: Error logging", () => {
     it("should log errors instead of silently swallowing them", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const logError = vi.fn();
 
       const mockDb = {
         execute: vi.fn().mockRejectedValue(new Error("DB error")),
@@ -149,11 +151,13 @@ describe("Critical Bug Fixes", () => {
       const writer = new BatchAuditWriter(mockDb as any, {
         auditTable: "audit_logs",
         batchSize: 5,
+        maxQueueSize: 100,
         flushInterval: 60000,
         strictMode: false, // Non-strict mode
         waitForWrite: false, // Async mode
         getUserId: () => "test-user",
         getMetadata: () => ({}),
+        logError,
       });
 
       // Queue logs
@@ -177,12 +181,7 @@ describe("Critical Bug Fixes", () => {
       }
 
       // Error should be logged
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[AUDIT]"),
-        expect.any(Error),
-      );
-
-      consoleErrorSpy.mockRestore();
+      expect(logError).toHaveBeenCalledWith(expect.stringContaining("[AUDIT]"), expect.any(Error));
       await writer.shutdown();
     });
   });
@@ -198,11 +197,13 @@ describe("Critical Bug Fixes", () => {
       const writer = new BatchAuditWriter(mockDb as any, {
         auditTable: "audit_logs",
         batchSize: 100, // High batch size to avoid auto-flush
+        maxQueueSize: 1000,
         flushInterval: 60000,
         strictMode: false,
         waitForWrite: false,
         getUserId: () => "test-user",
         getMetadata: () => ({}),
+        logError: () => {},
       });
 
       // Queue 10 logs

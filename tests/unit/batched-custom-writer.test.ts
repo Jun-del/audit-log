@@ -8,9 +8,11 @@ describe("BatchedCustomWriter", () => {
 
     const config = {
       batchSize: 10,
+      maxQueueSize: 100,
       flushInterval: 60000,
       strictMode: false,
       waitForWrite: false,
+      logError: () => {},
     };
 
     const writer1 = new BatchedCustomWriter(async () => {}, config);
