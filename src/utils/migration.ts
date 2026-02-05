@@ -1,14 +1,20 @@
 // TODO: Replace all postgres-js imports with either generic db or driver-agnostic
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { createAuditTableSQL } from "../storage/schema.js";
+import { createAuditTableSQL, createAuditTableSQLFor } from "../storage/schema.js";
 
 /**
  * Initialize the audit logging system
  * Creates the audit_logs table if it doesn't exist
  */
-export async function initializeAuditLogging(db: PostgresJsDatabase<any>): Promise<void> {
+export async function initializeAuditLogging(
+  db: PostgresJsDatabase<any>,
+  options?: { tableName?: string },
+): Promise<void> {
   try {
-    await db.execute(createAuditTableSQL);
+    const sql = options?.tableName
+      ? createAuditTableSQLFor(options.tableName)
+      : createAuditTableSQL;
+    await db.execute(sql);
     console.log("✓ Audit logging initialized successfully");
   } catch (error) {
     console.error("Failed to initialize audit logging:", error);

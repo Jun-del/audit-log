@@ -47,14 +47,25 @@ export const auditLogs = pgTable(
  * SQL migration to create the audit_logs table
  * Run this to set up the database
  */
-export const createAuditTableSQL = `
+const DEFAULT_TABLE_NAME = "audit_logs";
+
+function assertSafeIdentifier(name: string): void {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid table name: ${name}`);
+  }
+}
+
+function buildCreateAuditTableSQL(tableName: string): string {
+  assertSafeIdentifier(tableName);
+
+  return `
 -- Prevent concurrent test runs from racing on schema creation
 SELECT pg_advisory_xact_lock(913742, 540129);
 
-CREATE SEQUENCE IF NOT EXISTS audit_logs_id_seq;
+CREATE SEQUENCE IF NOT EXISTS ${tableName}_id_seq;
 
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id BIGINT PRIMARY KEY DEFAULT nextval('audit_logs_id_seq'),
+CREATE TABLE IF NOT EXISTS ${tableName} (
+  id BIGINT PRIMARY KEY DEFAULT nextval('${tableName}_id_seq'),
   
   user_id VARCHAR(255),
   ip_address VARCHAR(45),
@@ -74,17 +85,31 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   deleted_at TIMESTAMPTZ
 );
 
-ALTER SEQUENCE audit_logs_id_seq OWNED BY audit_logs.id;
+ALTER SEQUENCE ${tableName}_id_seq OWNED BY ${tableName}.id;
 
 -- Ensure custom actions are allowed when table already exists
-ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS audit_logs_action_check;
-ALTER TABLE audit_logs ALTER COLUMN action TYPE VARCHAR(255);
+ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS audit_logs_action_check;
+ALTER TABLE ${tableName} ALTER COLUMN action TYPE VARCHAR(255);
 
-CREATE INDEX IF NOT EXISTS idx_audit_logs_table_record ON audit_logs(table_name, record_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id) WHERE user_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_table_created ON audit_logs(table_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_table_record ON ${tableName}(table_name, record_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON ${tableName}(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON ${tableName}(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON ${tableName}(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_table_created ON ${tableName}(table_name, created_at DESC);
 
-COMMENT ON TABLE audit_logs IS 'Audit trail for all database operations';
+COMMENT ON TABLE ${tableName} IS 'Audit trail for all database operations';
 `;
+}
+
+/**
+ * SQL migration to create the audit_logs table (default name)
+ * Run this to set up the database
+ */
+export const createAuditTableSQL = buildCreateAuditTableSQL(DEFAULT_TABLE_NAME);
+
+/**
+ * SQL migration for a custom audit table name
+ */
+export function createAuditTableSQLFor(tableName = DEFAULT_TABLE_NAME): string {
+  return buildCreateAuditTableSQL(tableName);
+}
