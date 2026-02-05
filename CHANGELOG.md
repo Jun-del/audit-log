@@ -1,5 +1,14 @@
 # wr-audit-logger
 
+## 0.2.0
+
+### Minor Changes
+
+- f2a8fb4: add sanitized error logging hook
+  cap batch queue size via maxQueueSize
+  harden metadata merge vs proto pollution
+  add/adjust tests
+
 ## 0.1.3
 
 ### Patch Changes
