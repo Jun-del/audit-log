@@ -178,6 +178,7 @@ function createExecutionProxy(
   let hasReturning = false; // Track if user called .returning()
   let shouldAugmentReturning = false;
   let projectUserResult: ((result: unknown) => unknown) | null = null;
+  let fullReturningBuilder: QueryBuilderLike | null = null;
 
   const proxy = new Proxy(queryBuilder, {
     get(target, prop) {
@@ -190,9 +191,14 @@ function createExecutionProxy(
             const keys = Object.keys(args[0]);
             shouldAugmentReturning = keys.length > 0;
             projectUserResult = (result) => projectReturningResult(result, keys);
+            if (shouldAugmentReturning) {
+              // Build a full-returning variant for audit only.
+              fullReturningBuilder = (original as Function).apply(target, []);
+            }
           } else {
             shouldAugmentReturning = false;
             projectUserResult = null;
+            fullReturningBuilder = null;
           }
 
           const result = (original as Function).apply(target, args);
@@ -247,7 +253,7 @@ function createExecutionProxy(
             } else if (shouldAugmentReturning && typeof target.returning === "function") {
               // User selected partial columns; execute with full returning for audit,
               // then project back to user's selection.
-              queryToExecute = target.returning();
+              queryToExecute = fullReturningBuilder ?? target.returning();
             }
           }
 

@@ -276,6 +276,35 @@ describe("Automatic .returning() Injection", () => {
       expect(logs[0].values).toMatchObject({ name: "After" });
     });
 
+    it("should preserve user selection for INSERT returning({ id })", async () => {
+      const auditLogger = createAuditLogger(originalDb, {
+        tables: [TABLE_NAME],
+      });
+
+      const { db, setContext } = auditLogger;
+      setContext({ userId: "test-user" });
+
+      const result = await db
+        .insert(testUsers)
+        .values({ email: "return-insert@example.com", name: "Insert Me" })
+        .returning({ id: testUsers.id });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty("id");
+      expect(Object.keys(result[0])).toEqual(["id"]);
+
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "INSERT"), eq(auditLogs.tableName, TABLE_NAME)));
+
+      expect(logs).toHaveLength(1);
+      expect(logs[0].values).toMatchObject({
+        email: "return-insert@example.com",
+        name: "Insert Me",
+      });
+    });
+
     it("should audit DELETE when returning a selected column set", async () => {
       const auditLogger = createAuditLogger(originalDb, {
         tables: [TABLE_NAME],
