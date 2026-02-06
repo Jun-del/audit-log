@@ -194,6 +194,8 @@ function createExecutionProxy(
             if (shouldAugmentReturning) {
               // Build a full-returning variant for audit only.
               fullReturningBuilder = (original as Function).apply(target, []);
+              // Keep original builder unmodified; we'll project results to user selection.
+              return proxy;
             }
           } else {
             shouldAugmentReturning = false;

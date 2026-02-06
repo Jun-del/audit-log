@@ -300,7 +300,7 @@ const auditLogger = createAuditLogger(db, {
         action: log.action,
         table_name: log.tableName,
         record_id: log.recordId,
-        "values": log.values,
+        values: log.values,
         metadata: log.metadata,
       })),
     );
