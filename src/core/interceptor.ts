@@ -176,14 +176,43 @@ function createExecutionProxy(
 ) {
   let hasIntercepted = false; // Prevent double interception
   let hasReturning = false; // Track if user called .returning()
+  let shouldAugmentReturning = false;
+  let projectUserResult: ((result: unknown) => unknown) | null = null;
 
   const proxy = new Proxy(queryBuilder, {
     get(target, prop) {
       const original = (target as Record<string, unknown>)[prop as string];
 
-      // Track if .returning() was called
-      if (prop === "returning") {
-        hasReturning = true;
+      if (prop === "returning" && typeof original === "function") {
+        return function (...args: unknown[]) {
+          hasReturning = true;
+          if (args.length === 1 && isSelectionObject(args[0])) {
+            const keys = Object.keys(args[0]);
+            shouldAugmentReturning = keys.length > 0;
+            projectUserResult = (result) => projectReturningResult(result, keys);
+          } else {
+            shouldAugmentReturning = false;
+            projectUserResult = null;
+          }
+
+          const result = (original as Function).apply(target, args);
+
+          if (result && typeof result === "object" && result !== target) {
+            return createExecutionProxy(
+              operation,
+              result as QueryBuilderLike,
+              db,
+              auditLogger,
+              tableRef,
+            );
+          }
+
+          if (result === target) {
+            return proxy;
+          }
+
+          return result;
+        };
       }
 
       // Intercept promise methods (then, catch, finally) which trigger execution
@@ -209,13 +238,15 @@ function createExecutionProxy(
 
           // For INSERT/UPDATE/DELETE, automatically add .returning() if not present
           let queryToExecute = target;
-          if (
-            (operation === "insert" || operation === "update" || operation === "delete") &&
-            !hasReturning
-          ) {
-            debug(`Auto-injecting .returning() for ${operation} on ${tableName}`);
-            // Call .returning() on the query builder to get the affected rows
-            if (typeof target.returning === "function") {
+          if (operation === "insert" || operation === "update" || operation === "delete") {
+            if (!hasReturning) {
+              debug(`Auto-injecting .returning() for ${operation} on ${tableName}`);
+              if (typeof target.returning === "function") {
+                queryToExecute = target.returning();
+              }
+            } else if (shouldAugmentReturning && typeof target.returning === "function") {
+              // User selected partial columns; execute with full returning for audit,
+              // then project back to user's selection.
               queryToExecute = target.returning();
             }
           }
@@ -241,16 +272,17 @@ function createExecutionProxy(
           // Now apply the promise method to our audited promise
           return auditedPromise.then(
             (result) => {
+              const projected = projectUserResult ? projectUserResult(result) : result;
               debug(
-                `${operation} on ${tableName} completed, result count: ${Array.isArray(result) ? result.length : 1}`,
+                `${operation} on ${tableName} completed, result count: ${Array.isArray(projected) ? projected.length : 1}`,
               );
               if (prop === "then" && args[0]) {
-                return (args[0] as Function)(result);
+                return (args[0] as Function)(projected);
               }
               if (prop === "finally" && args[0]) {
                 (args[0] as Function)();
               }
-              return result;
+              return projected;
             },
             (error) => {
               debug(`${operation} on ${tableName} failed:`, error.message);
@@ -385,6 +417,25 @@ async function captureBeforeState(
  */
 function isRecordObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isSelectionObject(value: unknown): value is Record<string, unknown> {
+  return isRecordObject(value) && !Array.isArray(value);
+}
+
+function projectReturningResult(result: unknown, keys: string[]): unknown {
+  if (keys.length === 0) return result;
+  if (Array.isArray(result)) {
+    return result.map((row) => projectReturningResult(row, keys));
+  }
+  if (!isRecordObject(result)) return result;
+  const projected: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key in result) {
+      projected[key] = result[key];
+    }
+  }
+  return projected;
 }
 
 async function createAuditLogs(

@@ -275,6 +275,41 @@ describe("Automatic .returning() Injection", () => {
       expect(logs).toHaveLength(1);
       expect(logs[0].values).toMatchObject({ name: "After" });
     });
+
+    it("should audit DELETE when returning a selected column set", async () => {
+      const auditLogger = createAuditLogger(originalDb, {
+        tables: [TABLE_NAME],
+      });
+
+      const { db, setContext } = auditLogger;
+      setContext({ userId: "test-user" });
+
+      const [user] = await db
+        .insert(testUsers)
+        .values({ email: "return-delete@example.com", name: "Delete Me" })
+        .returning();
+
+      await originalDb.execute(`DELETE FROM audit_logs WHERE table_name = '${TABLE_NAME}'`);
+
+      const deleted = await db
+        .delete(testUsers)
+        .where(eq(testUsers.id, user.id))
+        .returning({ id: testUsers.id });
+
+      expect(deleted).toHaveLength(1);
+      expect(deleted[0]).toEqual({ id: user.id });
+
+      const logs = await originalDb
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.action, "DELETE"), eq(auditLogs.tableName, TABLE_NAME)));
+
+      expect(logs).toHaveLength(1);
+      expect(logs[0].values).toMatchObject({
+        email: "return-delete@example.com",
+        name: "Delete Me",
+      });
+    });
   });
 
   describe("Return value handling", () => {
