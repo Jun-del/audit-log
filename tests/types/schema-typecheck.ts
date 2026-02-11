@@ -14,6 +14,7 @@ declare const db: PostgresJsDatabase<typeof schema>;
 const auditLogger = createAuditLogger(db, {
   tables: ["company_document"],
   fields: { company_document: ["id", "fileName"] },
+  primaryKeyMap: { company_document: "id" },
 });
 
 auditLogger.db.query.companyDocument.findFirst({
@@ -21,10 +22,17 @@ auditLogger.db.query.companyDocument.findFirst({
 });
 
 // @ts-expect-error invalid table name
-createAuditLogger(db, { tables: ["users"] });
+createAuditLogger(db, { tables: ["users"], primaryKeyMap: { company_document: "id" } });
 
 // @ts-expect-error invalid field name
-createAuditLogger(db, { tables: ["company_document"], fields: { company_document: ["nope"] } });
+createAuditLogger(db, {
+  tables: ["company_document"],
+  fields: { company_document: ["nope"] },
+  primaryKeyMap: { company_document: "id" },
+});
+
+// @ts-expect-error invalid table name for primaryKeyMap
+createAuditLogger(db, { tables: ["company_document"], primaryKeyMap: { users: "id" } });
 
 // @ts-expect-error invalid table name for logInsert
 auditLogger.logInsert("users", { id: 1 });

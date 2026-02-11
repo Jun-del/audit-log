@@ -392,39 +392,18 @@ const auditLogger = createAuditLogger(db, {
 **Symptom:** `record_id` is `null` or incorrect.
 
 **Diagnosis:**
-The library tries to extract the primary key from these fields (in order):
+`primaryKeyMap` is required for audited tables. `recordId` uses that mapping only.
 
-1. `id`
-2. `{tableName}_id`
-3. `uuid`
-4. `pk`
-5. Any field ending in `id` or `Id`
-
-**Solution 1: Use standard naming**
+**Solution: configure `primaryKeyMap`**
 
 ```typescript
-// ✓ These work:
-{
-  id: 1;
-}
-{
-  userId: 1;
-}
-{
-  uuid: "...";
-}
-
-// ✗ These don't:
-{
-  identifier: 1;
-}
-{
-  recordNumber: 1;
-}
+const auditLogger = createAuditLogger(db, {
+  tables: ["electricity_bill"],
+  primaryKeyMap: {
+    electricity_bill: "jobid",
+  },
+});
 ```
-
-**Solution 2: Custom serialization**
-Modify `extractPrimaryKey` in `src/utils/primary-key.ts` for your schema.
 
 ### Problem: No changed fields in UPDATE logs
 

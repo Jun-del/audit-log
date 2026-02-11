@@ -70,6 +70,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         batch: {
           batchSize: 5,
           flushInterval: 10000, // High interval
@@ -115,6 +116,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         batch: {
           batchSize: 3, // Small batch size
           flushInterval: 10000,
@@ -151,6 +153,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         batch: {
           batchSize: 100,
           flushInterval: 200, // 200ms
@@ -186,6 +189,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         batch: {
           batchSize: 100,
           flushInterval: 60000, // Very high
@@ -223,6 +227,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         batch: {
           batchSize: 100,
           flushInterval: 10000,
@@ -267,6 +272,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         strictMode: false, // Non-strict
         batch: {
           batchSize: 5,
@@ -314,6 +320,7 @@ describe("Batch Mode with Custom Writer", () => {
       // Test with waitForWrite: true
       const syncAudit = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         batch: {
           batchSize: 5,
           flushInterval: 10000,
@@ -347,6 +354,7 @@ describe("Batch Mode with Custom Writer", () => {
 
       const auditLogger = createAuditLogger(originalDb, {
         tables: ["custom_batch_test_users"],
+        primaryKeyMap: { custom_batch_test_users: "id" },
         // No batch config
         customWriter,
       });

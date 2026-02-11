@@ -59,6 +59,7 @@ describe("Capture Configuration", () => {
     it("should capture changed values when enabled", async () => {
       const auditLogger = createAuditLogger(originalDb, {
         tables: [TABLE_NAME],
+        primaryKeyMap: { [TABLE_NAME]: "id" },
         updateValuesMode: "changed",
       });
 
@@ -87,6 +88,7 @@ describe("Capture Configuration", () => {
     it("should store full after values when in full mode", async () => {
       const auditLogger = createAuditLogger(originalDb, {
         tables: [TABLE_NAME],
+        primaryKeyMap: { [TABLE_NAME]: "id" },
         updateValuesMode: "full",
       });
 
@@ -117,6 +119,7 @@ describe("Capture Configuration", () => {
     it("should always capture deleted data using auto-injected .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
         tables: [TABLE_NAME],
+        primaryKeyMap: { [TABLE_NAME]: "id" },
       });
 
       const { db, setContext } = auditLogger;
@@ -150,6 +153,7 @@ describe("Capture Configuration", () => {
     it("should not create audit log when DELETE matches no records", async () => {
       const auditLogger = createAuditLogger(originalDb, {
         tables: [TABLE_NAME],
+        primaryKeyMap: { [TABLE_NAME]: "id" },
       });
 
       const { db, setContext } = auditLogger;
@@ -173,6 +177,7 @@ describe("Capture Configuration", () => {
     it('should skip SELECT query when updateValuesMode is "full"', async () => {
       const auditLogger = createAuditLogger(originalDb, {
         tables: [TABLE_NAME],
+        primaryKeyMap: { [TABLE_NAME]: "id" },
         updateValuesMode: "full",
       });
 

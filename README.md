@@ -65,6 +65,7 @@ import { createAuditLogger } from "wr-audit-logger";
 
 const auditLogger = createAuditLogger(db, {
   tables: ["users", "vehicles"],
+  primaryKeyMap: { users: "id", vehicles: "id" },
   excludeFields: ["password", "token"],
   getUserId: () => getCurrentUser()?.id,
 });
@@ -174,6 +175,9 @@ interface AuditConfig {
 
   // Specific fields per table (optional)
   fields?: Record<string, string[]>;
+
+  // Required: primary key field(s) per audited table for recordId extraction
+  primaryKeyMap: Record<string, string | string[]>;
 
   // Fields to exclude globally
   excludeFields?: string[];
@@ -320,7 +324,10 @@ const auditLogger = createAuditLogger(db, {
 ### 6) Manual logging (edge cases)
 
 ```ts
-const auditLogger = createAuditLogger(db, { tables: ["users"] });
+const auditLogger = createAuditLogger(db, {
+  tables: ["users"],
+  primaryKeyMap: { users: "id" },
+});
 await auditLogger.log({
   action: "READ",
   tableName: "users",
@@ -335,6 +342,7 @@ await auditLogger.log({
 const schema = { users, vehicles };
 const auditLogger = createAuditLogger(db as PostgresJsDatabase<typeof schema>, {
   tables: ["users"],
+  primaryKeyMap: { users: "id" },
   fields: { users: ["id", "email"] },
 });
 ```
@@ -380,6 +388,7 @@ const auditLogger = createAuditLogger(db, {
 ```ts
 const auditLogger = createAuditLogger(db, {
   tables: ["users", "vehicles"],
+  primaryKeyMap: { users: "id", vehicles: "id" },
   fields: {
     users: ["id", "email", "role"],
     vehicles: ["id", "make", "model", "status"],

@@ -2,27 +2,21 @@
  * Extract primary key from a record
  * Handles various PK formats: single, composite, UUID, etc.
  */
-export function extractPrimaryKey(record: Record<string, unknown>, tableName: string): string {
-  // Try common primary key field names
-  const commonPkFields = ["id", `${tableName}_id`, "uuid", "pk"];
-
-  for (const field of commonPkFields) {
-    if (field in record && record[field] != null) {
-      return String(record[field]);
-    }
+export function extractPrimaryKey(
+  record: Record<string, unknown>,
+  tableName: string,
+  primaryKeyMap: Record<string, string | string[]>,
+): string {
+  const configuredKey = primaryKeyMap[tableName];
+  if (!configuredKey) {
+    throw new Error(`primaryKeyMap missing key for table: ${tableName}`);
   }
 
-  // If no standard PK found, look for any field ending in 'id' or 'Id'
-  const idField = Object.keys(record).find(
-    (key) => key.toLowerCase().endsWith("id") && record[key] != null,
-  );
-
-  if (idField) {
-    return String(record[idField]);
+  const configured = extractConfiguredPrimaryKey(record, configuredKey);
+  if (configured == null) {
+    throw new Error(`primaryKeyMap fields missing in record for table: ${tableName}`);
   }
-
-  // Last resort - safe JSON stringify with BigInt and circular reference handling
-  return safeStringifyForPK(record);
+  return configured;
 }
 
 /**
@@ -31,8 +25,29 @@ export function extractPrimaryKey(record: Record<string, unknown>, tableName: st
 export function extractPrimaryKeys(
   records: Record<string, unknown>[],
   tableName: string,
+  primaryKeyMap: Record<string, string | string[]>,
 ): string[] {
-  return records.map((record) => extractPrimaryKey(record, tableName));
+  return records.map((record) => extractPrimaryKey(record, tableName, primaryKeyMap));
+}
+
+function extractConfiguredPrimaryKey(
+  record: Record<string, unknown>,
+  key: string | string[],
+): string | null {
+  const keys = Array.isArray(key) ? key : [key];
+  const resolved: Record<string, unknown> = {};
+
+  for (const field of keys) {
+    const value = record[field];
+    if (value == null) return null;
+    resolved[field] = value;
+  }
+
+  if (keys.length === 1) {
+    return String(resolved[keys[0]!]);
+  }
+
+  return safeStringifyForPK(resolved);
 }
 
 /**
