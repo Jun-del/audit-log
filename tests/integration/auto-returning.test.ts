@@ -58,8 +58,7 @@ describe("Automatic .returning() Injection", () => {
   describe("INSERT without .returning()", () => {
     it("should automatically capture inserted data and create audit log", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -91,8 +90,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should work with bulk inserts without .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -121,8 +119,7 @@ describe("Automatic .returning() Injection", () => {
   describe("UPDATE without .returning()", () => {
     it("should automatically capture updated data and create audit log", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
         updateValuesMode: "changed", // Store only changed fields
       });
 
@@ -153,8 +150,7 @@ describe("Automatic .returning() Injection", () => {
 
     it('should work when updateValuesMode is "full"', async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
         updateValuesMode: "full",
       });
 
@@ -185,8 +181,7 @@ describe("Automatic .returning() Injection", () => {
   describe("DELETE without .returning()", () => {
     it("should automatically capture deleted data", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -219,8 +214,7 @@ describe("Automatic .returning() Injection", () => {
   describe("WITH explicit .returning() - should still work", () => {
     it("should respect user's explicit .returning() call", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -253,8 +247,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should audit UPDATE when returning a selected column set", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
         updateValuesMode: "changed",
       });
 
@@ -285,8 +278,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should preserve user selection for INSERT returning({ id })", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -315,8 +307,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should audit DELETE when returning a selected column set", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -353,8 +344,7 @@ describe("Automatic .returning() Injection", () => {
   describe("Return value handling", () => {
     it("should return data when .returning() is auto-injected", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db } = auditLogger;
@@ -373,8 +363,7 @@ describe("Automatic .returning() Injection", () => {
 
     it("should return inserted data when user calls .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db } = auditLogger;

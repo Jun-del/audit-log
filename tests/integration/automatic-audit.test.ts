@@ -63,8 +63,7 @@ describe("Automatic Audit Logging (Integration)", () => {
 
     // Create audit logger
     const auditLogger = createAuditLogger(originalDb, {
-      tables: [USERS_TABLE, VEHICLES_TABLE],
-      primaryKeyMap: { [USERS_TABLE]: "id", [VEHICLES_TABLE]: "id" },
+      tables: { [USERS_TABLE]: { primaryKey: "id" }, [VEHICLES_TABLE]: { primaryKey: "id" } },
       excludeFields: ["password"],
     });
 
@@ -190,8 +189,7 @@ describe("Automatic Audit Logging (Integration)", () => {
     it('should not log update if nothing changed (when updateValuesMode="changed")', async () => {
       // Create a new logger with updateValuesMode set to changed for this test
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         updateValuesMode: "changed",
       });
 
@@ -297,8 +295,7 @@ describe("Automatic Audit Logging (Integration)", () => {
   describe("Manual logging and metadata", () => {
     it("should support custom actions and merge metadata sources", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         getMetadata: () => ({ fromConfig: true, shared: "config" }),
       });
 

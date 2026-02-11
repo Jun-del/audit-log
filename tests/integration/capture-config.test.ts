@@ -58,8 +58,7 @@ describe("Capture Configuration", () => {
   describe("updateValuesMode configuration", () => {
     it("should capture changed values when enabled", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
         updateValuesMode: "changed",
       });
 
@@ -87,8 +86,7 @@ describe("Capture Configuration", () => {
 
     it("should store full after values when in full mode", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
         updateValuesMode: "full",
       });
 
@@ -118,8 +116,7 @@ describe("Capture Configuration", () => {
   describe("DELETE operations (always logged via .returning())", () => {
     it("should always capture deleted data using auto-injected .returning()", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -152,8 +149,7 @@ describe("Capture Configuration", () => {
 
     it("should not create audit log when DELETE matches no records", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
       });
 
       const { db, setContext } = auditLogger;
@@ -176,8 +172,7 @@ describe("Capture Configuration", () => {
   describe("Performance benefits", () => {
     it('should skip SELECT query when updateValuesMode is "full"', async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [TABLE_NAME],
-        primaryKeyMap: { [TABLE_NAME]: "id" },
+        tables: { [TABLE_NAME]: { primaryKey: "id" } },
         updateValuesMode: "full",
       });
 

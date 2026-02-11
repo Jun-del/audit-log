@@ -5,16 +5,16 @@
 export function extractPrimaryKey(
   record: Record<string, unknown>,
   tableName: string,
-  primaryKeyMap: Record<string, string | string[]>,
+  tableConfigMap: Record<string, { primaryKey: string | string[] }>,
 ): string {
-  const configuredKey = primaryKeyMap[tableName];
+  const configuredKey = tableConfigMap[tableName]?.primaryKey;
   if (!configuredKey) {
-    throw new Error(`primaryKeyMap missing key for table: ${tableName}`);
+    throw new Error(`tables.${tableName}.primaryKey is required`);
   }
 
   const configured = extractConfiguredPrimaryKey(record, configuredKey);
   if (configured == null) {
-    throw new Error(`primaryKeyMap fields missing in record for table: ${tableName}`);
+    throw new Error(`record missing configured primaryKey field(s) for table: ${tableName}`);
   }
   return configured;
 }
@@ -25,9 +25,9 @@ export function extractPrimaryKey(
 export function extractPrimaryKeys(
   records: Record<string, unknown>[],
   tableName: string,
-  primaryKeyMap: Record<string, string | string[]>,
+  tableConfigMap: Record<string, { primaryKey: string | string[] }>,
 ): string[] {
-  return records.map((record) => extractPrimaryKey(record, tableName, primaryKeyMap));
+  return records.map((record) => extractPrimaryKey(record, tableName, tableConfigMap));
 }
 
 function extractConfiguredPrimaryKey(

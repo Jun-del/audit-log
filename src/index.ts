@@ -40,7 +40,7 @@ export { initializeAuditLogging, checkAuditSetup, getAuditStats } from "./utils/
  * @example
  * ```typescript
  * const { db } = createAuditLogger(originalDb, {
- *   tables: ['users', 'vehicles'],
+ *   tables: { users: { primaryKey: "id" }, vehicles: { primaryKey: "id" } },
  *   getUserId: () => getCurrentUser()?.id,
  * });
  *

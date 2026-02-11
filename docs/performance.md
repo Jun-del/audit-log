@@ -88,7 +88,7 @@ INSERT INTO audit_logs (...) VALUES (...);
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   // No batch config - writes immediately
 });
 ```
@@ -110,7 +110,7 @@ Immediate mode: 250ms
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   batch: {
     batchSize: 100,
     flushInterval: 1000,
@@ -137,7 +137,7 @@ Speedup: 5x
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   batch: {
     batchSize: 100,
     flushInterval: 1000,
@@ -166,7 +166,7 @@ Speedup: 2.5x
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   updateValuesMode: "changed", // Store only changed fields
   // No batch mode needed
 });
@@ -178,7 +178,7 @@ const auditLogger = createAuditLogger(db, {
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   updateValuesMode: "changed", // If you need changed fields
   batch: {
     batchSize: 50,
@@ -194,7 +194,7 @@ const auditLogger = createAuditLogger(db, {
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   updateValuesMode: "full", // Store full after row
   batch: {
     batchSize: 100,
@@ -210,7 +210,7 @@ const auditLogger = createAuditLogger(db, {
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   updateValuesMode: "full",
   batch: {
     batchSize: 500, // Large batches
@@ -294,7 +294,7 @@ If your app server is far from your database:
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   batch: {
     batchSize: 100,
     flushInterval: 1000,
@@ -347,7 +347,7 @@ Total overhead: 5 * 0.5ms = 2.5ms per order
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["events"],
+  tables: { events: { primaryKey: "id" } },
   updateValuesMode: "full", // Don't need changed fields for events
   batch: {
     batchSize: 100,

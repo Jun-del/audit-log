@@ -55,8 +55,7 @@ describe("Batch Mode Integration", () => {
   describe("Basic batching", () => {
     it("should queue and batch multiple operations", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 5,
           flushInterval: 5000, // High interval to test manual flush
@@ -100,8 +99,7 @@ describe("Batch Mode Integration", () => {
 
     it("should auto-flush when batch size is reached", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 3, // Small batch size
           flushInterval: 10000,
@@ -129,8 +127,7 @@ describe("Batch Mode Integration", () => {
 
     it("should auto-flush based on time interval", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 200, // 200ms
@@ -162,8 +159,7 @@ describe("Batch Mode Integration", () => {
   describe("waitForWrite configuration", () => {
     it("should wait for write when waitForWrite is true", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 10000,
@@ -196,8 +192,7 @@ describe("Batch Mode Integration", () => {
 
     it("should not wait for write when waitForWrite is false (async mode)", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 10000,
@@ -234,8 +229,7 @@ describe("Batch Mode Integration", () => {
   describe("Graceful shutdown", () => {
     it("should flush all pending logs on shutdown", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 60000, // Very high interval
@@ -272,8 +266,7 @@ describe("Batch Mode Integration", () => {
 
     it("should handle multiple shutdown calls gracefully", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 10000,
@@ -299,8 +292,7 @@ describe("Batch Mode Integration", () => {
 
     it("should reject new operations after shutdown", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 10000,
@@ -326,8 +318,7 @@ describe("Batch Mode Integration", () => {
     it("should be faster than immediate mode for bulk operations", async () => {
       // Immediate mode
       const immediateLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         // No batch config - immediate writes
       });
 
@@ -347,8 +338,7 @@ describe("Batch Mode Integration", () => {
 
       // Batch mode
       const batchLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 10,
           flushInterval: 10000,
@@ -383,8 +373,7 @@ describe("Batch Mode Integration", () => {
   describe("Error handling in batch mode", () => {
     it("should handle individual log failures in non-strict mode", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         strictMode: false,
         batch: {
           batchSize: 5,
@@ -412,8 +401,7 @@ describe("Batch Mode Integration", () => {
 
     it("should fail operations in strict mode when audit fails", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         strictMode: true,
         batch: {
           batchSize: 5,
@@ -442,8 +430,7 @@ describe("Batch Mode Integration", () => {
   describe("Stats and monitoring", () => {
     it("should provide accurate queue stats", async () => {
       const auditLogger = createAuditLogger(originalDb, {
-        tables: [USERS_TABLE],
-        primaryKeyMap: { [USERS_TABLE]: "id" },
+        tables: { [USERS_TABLE]: { primaryKey: "id" } },
         batch: {
           batchSize: 100,
           flushInterval: 60000,

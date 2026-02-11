@@ -10,9 +10,8 @@ describe("Capture Configuration (Unit Tests)", () => {
 
   beforeEach(() => {
     mockConfig = {
-      tables: ["test_users"],
+      tables: { test_users: { primaryKey: "id" } },
       fields: {},
-      primaryKeyMap: { test_users: "id" },
       excludeFields: ["password"],
       auditTable: "audit_logs",
       auditColumnMap: DEFAULT_AUDIT_COLUMN_MAP,
@@ -220,7 +219,7 @@ describe("Capture Configuration (Unit Tests)", () => {
 
   describe("Primary key overrides", () => {
     it("should use primaryKeyMap for recordId", () => {
-      mockConfig.primaryKeyMap = { electricity_bill: "jobid" };
+      mockConfig.tables = { electricity_bill: { primaryKey: "jobid" } };
       const records = [{ jobid: "job-1", amount: 100 }];
 
       const logs = createInsertAuditLogs("electricity_bill", records, mockConfig);
@@ -229,7 +228,7 @@ describe("Capture Configuration (Unit Tests)", () => {
     });
 
     it("should match updates using configured primary key", () => {
-      mockConfig.primaryKeyMap = { electricity_bill: "jobid" };
+      mockConfig.tables = { electricity_bill: { primaryKey: "jobid" } };
       mockConfig.updateValuesMode = "changed";
       const beforeRecords = [{ jobid: "job-1", amount: 100 }];
       const afterRecords = [{ jobid: "job-1", amount: 120 }];
@@ -247,7 +246,7 @@ describe("Capture Configuration (Unit Tests)", () => {
     });
 
     it("should support composite primary keys", () => {
-      mockConfig.primaryKeyMap = { ledger: ["org_id", "entry_id"] };
+      mockConfig.tables = { ledger: { primaryKey: ["org_id", "entry_id"] } };
       const records = [{ org_id: 7, entry_id: "e-9", amount: 50 }];
 
       const logs = createInsertAuditLogs("ledger", records, mockConfig);

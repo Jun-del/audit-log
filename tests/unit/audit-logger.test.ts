@@ -15,8 +15,7 @@ describe("AuditLogger", () => {
     } as any;
 
     auditLogger = new AuditLogger(mockDb, {
-      tables: ["users", "vehicles"],
-      primaryKeyMap: { users: "id", vehicles: "id" },
+      tables: { users: { primaryKey: "id" }, vehicles: { primaryKey: "id" } },
       excludeFields: ["password"],
     });
   });
@@ -125,8 +124,7 @@ describe("AuditLogger", () => {
 
     it("should not log update if nothing changed when capturing old values", async () => {
       auditLogger = new AuditLogger(mockDb, {
-        tables: ["users", "vehicles"],
-        primaryKeyMap: { users: "id", vehicles: "id" },
+        tables: { users: { primaryKey: "id" }, vehicles: { primaryKey: "id" } },
         excludeFields: ["password"],
         updateValuesMode: "changed",
       });
@@ -153,8 +151,7 @@ describe("AuditLogger", () => {
   describe("Configuration", () => {
     it("should respect wildcard table configuration", () => {
       const logger = new AuditLogger(mockDb, {
-        tables: "*",
-        primaryKeyMap: {},
+        tables: { users: { primaryKey: "id" } },
       });
 
       expect(logger).toBeDefined();
@@ -162,8 +159,7 @@ describe("AuditLogger", () => {
 
     it("should never audit the audit table itself", async () => {
       const logger = new AuditLogger(mockDb, {
-        tables: "*",
-        primaryKeyMap: {},
+        tables: { users: { primaryKey: "id" } },
       });
 
       await logger.logInsert("audit_logs", { id: 1 });

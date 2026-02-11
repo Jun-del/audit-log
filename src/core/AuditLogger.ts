@@ -28,7 +28,7 @@ import { createInterceptedDb } from "./interceptor.js";
  * @example
  * ```typescript
  * const auditLogger = new AuditLogger(db, {
- *   tables: ['users', 'posts'],
+ *   tables: { users: { primaryKey: "id" }, posts: { primaryKey: "id" } },
  *   excludeFields: ['password'],
  *   getUserId: () => getCurrentUser()?.id
  * });
@@ -55,7 +55,7 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
    * @example
    * ```typescript
    * const logger = new AuditLogger(db, {
-   *   tables: ['users'],
+   *   tables: { users: { primaryKey: "id" } },
    *   batch: { batchSize: 100, flushInterval: 1000 }
    * });
    * ```
@@ -120,52 +120,41 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
       }
     }
 
-    if (config.tables !== "*" && config.tables.length === 0) {
-      throw new Error("tables array cannot be empty. Use '*' for all tables.");
+    if (Object.keys(config.tables).length === 0) {
+      throw new Error("tables config cannot be empty.");
     }
 
-    this.validatePrimaryKeyMap(config);
+    this.validateTablesConfig(config);
     this.validateColumnMap(config.auditColumnMap);
   }
 
-  private validatePrimaryKeyMap(config: NormalizedConfig<TSchema>): void {
-    const map = config.primaryKeyMap;
-    for (const [table, key] of Object.entries(map) as Array<[string, string | string[]]>) {
-      if (config.tables !== "*" && !(config.tables as readonly string[]).includes(table)) {
-        throw new Error(`primaryKeyMap references unknown table: ${table}`);
+  private validateTablesConfig(config: NormalizedConfig<TSchema>): void {
+    for (const [table, tableConfig] of Object.entries(config.tables) as Array<
+      [string, { primaryKey: string | string[] }]
+    >) {
+      if (!tableConfig) {
+        throw new Error(`tables.${table} is missing configuration`);
       }
-      this.validatePrimaryKeyValue(table, key);
-    }
-
-    if (config.tables === "*") {
-      return;
-    }
-
-    for (const table of config.tables) {
-      const key = map[table];
-      if (key == null) {
-        throw new Error(`primaryKeyMap missing key for audited table: ${table}`);
-      }
-      this.validatePrimaryKeyValue(table, key);
+      this.validatePrimaryKeyValue(table, tableConfig.primaryKey);
     }
   }
 
   private validatePrimaryKeyValue(table: string, key: string | string[]): void {
     if (typeof key === "string") {
       if (!key.trim()) {
-        throw new Error(`primaryKeyMap has empty key for table: ${table}`);
+        throw new Error(`tables.${table}.primaryKey cannot be empty`);
       }
       return;
     }
 
     if (Array.isArray(key)) {
       if (key.length === 0 || key.some((value) => !value || !value.trim())) {
-        throw new Error(`primaryKeyMap has empty key in list for table: ${table}`);
+        throw new Error(`tables.${table}.primaryKey contains empty field`);
       }
       return;
     }
 
-    throw new Error(`primaryKeyMap must be string or string[] for table: ${table}`);
+    throw new Error(`tables.${table}.primaryKey must be string or string[]`);
   }
 
   private validateColumnMap(map: AuditColumnMap): void {
@@ -198,7 +187,6 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
     return {
       tables: config.tables,
       fields: config.fields || {},
-      primaryKeyMap: config.primaryKeyMap || {},
       excludeFields: config.excludeFields || ["password", "token", "secret", "apiKey"],
       auditTable: config.auditTable || "audit_logs",
       // oxlint-disable-next-line unicorn/no-useless-fallback-in-spread
@@ -253,11 +241,7 @@ export class AuditLogger<TSchema extends Record<string, unknown> = any> {
       return false;
     }
 
-    if (this.config.tables === "*") {
-      return true;
-    }
-
-    return (this.config.tables as readonly string[]).includes(tableName);
+    return tableName in this.config.tables;
   }
 
   /**

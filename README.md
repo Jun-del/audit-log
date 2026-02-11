@@ -64,8 +64,10 @@ export const auditLogs = createAuditLogsTable("my_audit_logs", {
 import { createAuditLogger } from "wr-audit-logger";
 
 const auditLogger = createAuditLogger(db, {
-  tables: ["users", "vehicles"],
-  primaryKeyMap: { users: "id", vehicles: "id" },
+  tables: {
+    users: { primaryKey: "id" },
+    vehicles: { primaryKey: "id" },
+  },
   excludeFields: ["password", "token"],
   getUserId: () => getCurrentUser()?.id,
 });
@@ -170,14 +172,11 @@ If your code relies on non-returning metadata, avoid depending on that behavior 
 
 ```ts
 interface AuditConfig {
-  // Tables to audit
-  tables: string[] | "*";
+  // Tables to audit with per-table primary key config
+  tables: Record<string, { primaryKey: string | string[] }>;
 
   // Specific fields per table (optional)
   fields?: Record<string, string[]>;
-
-  // Required: primary key field(s) per audited table for recordId extraction
-  primaryKeyMap: Record<string, string | string[]>;
 
   // Fields to exclude globally
   excludeFields?: string[];
@@ -251,7 +250,10 @@ interface AuditContext {
 
 ```ts
 const auditLogger = createAuditLogger(db, {
-  tables: "*",
+  tables: {
+    users: { primaryKey: "id" },
+    vehicles: { primaryKey: "id" },
+  },
   excludeFields: ["password", "token"],
   getUserId: () => getCurrentUser()?.id,
 });
@@ -270,7 +272,9 @@ await db.execute(
 );
 
 const auditLogger = createAuditLogger(db, {
-  tables: "*",
+  tables: {
+    users: { primaryKey: "id" },
+  },
   auditTable: "my_audit_logs",
   auditColumnMap: { userId: "actor_id", tableName: "resource" },
 });
@@ -284,7 +288,9 @@ export const auditLogs = createAuditLogsTable("audit_logs", {
 });
 
 const auditLogger = createAuditLogger(db, {
-  tables: "*",
+  tables: {
+    users: { primaryKey: "id" },
+  },
   // built-in writer still writes only standard columns
 });
 ```
@@ -295,7 +301,9 @@ If you need to write extra columns, use `customWriter` (next section).
 
 ```ts
 const auditLogger = createAuditLogger(db, {
-  tables: "*",
+  tables: {
+    users: { primaryKey: "id" },
+  },
   customWriter: async (logs, context) => {
     await db.insert(myAuditTable).values(
       logs.map((log) => ({
@@ -316,7 +324,9 @@ const auditLogger = createAuditLogger(db, {
 
 ```ts
 const auditLogger = createAuditLogger(db, {
-  tables: "*",
+  tables: {
+    users: { primaryKey: "id" },
+  },
   batch: { batchSize: 200, flushInterval: 1000 },
 });
 ```
@@ -325,8 +335,9 @@ const auditLogger = createAuditLogger(db, {
 
 ```ts
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
-  primaryKeyMap: { users: "id" },
+  tables: {
+    users: { primaryKey: "id" },
+  },
 });
 await auditLogger.log({
   action: "READ",
@@ -341,8 +352,9 @@ await auditLogger.log({
 ```ts
 const schema = { users, vehicles };
 const auditLogger = createAuditLogger(db as PostgresJsDatabase<typeof schema>, {
-  tables: ["users"],
-  primaryKeyMap: { users: "id" },
+  tables: {
+    users: { primaryKey: "id" },
+  },
   fields: { users: ["id", "email"] },
 });
 ```
@@ -374,21 +386,14 @@ or map them via `auditColumnMap`:
 
 ## Examples
 
-### Audit all tables
-
-```ts
-const auditLogger = createAuditLogger(db, {
-  tables: "*",
-  excludeFields: ["password", "token", "secret"],
-});
-```
-
 ### Audit specific fields only
 
 ```ts
 const auditLogger = createAuditLogger(db, {
-  tables: ["users", "vehicles"],
-  primaryKeyMap: { users: "id", vehicles: "id" },
+  tables: {
+    users: { primaryKey: "id" },
+    vehicles: { primaryKey: "id" },
+  },
   fields: {
     users: ["id", "email", "role"],
     vehicles: ["id", "make", "model", "status"],

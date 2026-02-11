@@ -132,7 +132,7 @@ GRANT USAGE, SELECT ON SEQUENCE audit_logs_id_seq TO your_app_user;
 
    ```typescript
    const auditLogger = createAuditLogger(db, {
-     tables: ["users"], // Must include the table!
+     tables: { users: { primaryKey: "id" } }, // Must include the table!
    });
    ```
 
@@ -199,7 +199,7 @@ app.use((req, res, next) => {
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   getUserId: () => {
     // Return current user ID from your auth system
     return getCurrentUser()?.id;
@@ -248,7 +248,7 @@ console.log(`Took: ${Date.now() - start}ms`);
 
    ```typescript
    const auditLogger = createAuditLogger(db, {
-     tables: ["users"],
+     tables: { users: { primaryKey: "id" } },
      batch: {
        batchSize: 100,
        flushInterval: 1000,
@@ -261,7 +261,7 @@ console.log(`Took: ${Date.now() - start}ms`);
 
    ```typescript
    const auditLogger = createAuditLogger(db, {
-     tables: ["users"],
+     tables: { users: { primaryKey: "id" } },
      updateValuesMode: "full", // Skip SELECT before UPDATE
    });
    ```
@@ -269,7 +269,7 @@ console.log(`Took: ${Date.now() - start}ms`);
 3. **Audit specific fields only:**
    ```typescript
    const auditLogger = createAuditLogger(db, {
-     tables: ["users"],
+     tables: { users: { primaryKey: "id" } },
      fields: {
        users: ["id", "email", "role"], // Only audit these fields
      },
@@ -367,7 +367,7 @@ console.log(`Queue size: ${stats.queueSize}`);
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   excludeFields: ["password", "token", "secret", "apiKey"],
 });
 ```
@@ -382,7 +382,7 @@ const auditLogger = createAuditLogger(db, {
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   updateValuesMode: "changed", // Store only changed fields
 });
 ```
@@ -392,16 +392,13 @@ const auditLogger = createAuditLogger(db, {
 **Symptom:** `record_id` is `null` or incorrect.
 
 **Diagnosis:**
-`primaryKeyMap` is required for audited tables. `recordId` uses that mapping only.
+`tables.<table>.primaryKey` is required for audited tables. `recordId` uses that mapping only.
 
-**Solution: configure `primaryKeyMap`**
+**Solution: configure table primary key**
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["electricity_bill"],
-  primaryKeyMap: {
-    electricity_bill: "jobid",
-  },
+  tables: { electricity_bill: { primaryKey: "jobid" } },
 });
 ```
 
@@ -415,7 +412,7 @@ const auditLogger = createAuditLogger(db, {
 
 ```typescript
 const auditLogger = createAuditLogger(db, {
-  tables: ["users"],
+  tables: { users: { primaryKey: "id" } },
   updateValuesMode: "changed", // Store only changed fields
 });
 ```
