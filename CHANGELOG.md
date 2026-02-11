@@ -1,5 +1,11 @@
 # wr-audit-logger
 
+## 0.3.0
+
+### Minor Changes
+
+- 6341ff0: Improve audit logging stability and test reliability: fix primary key serialization edge cases, clean interceptor/error handling, and streamline test scripts (unit default, integration opt-in).
+
 ## 0.2.3
 
 ### Patch Changes
